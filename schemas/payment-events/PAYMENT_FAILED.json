@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["eventType", "paymentId", "errorCode", "errorMessage", "failedAt"],
+  "properties": {
+    "eventType":    { "type": "string", "const": "PAYMENT_FAILED" },
+    "paymentId":    { "type": "string" },
+    "errorCode":    { "type": "string", "enum": ["INSUFFICIENT_FUNDS", "CARD_DECLINED", "TIMEOUT", "FRAUD_BLOCKED"] },
+    "errorMessage": { "type": "string" },
+    "failedAt":     { "type": "string" }
+  }
+}

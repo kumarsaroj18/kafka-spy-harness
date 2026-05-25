@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["eventType", "paymentId", "transactionId", "amount", "completedAt"],
+  "properties": {
+    "eventType":     { "type": "string", "const": "PAYMENT_COMPLETED" },
+    "paymentId":     { "type": "string" },
+    "transactionId": { "type": "string" },
+    "amount":        { "type": "number", "minimum": 0 },
+    "completedAt":   { "type": "string" }
+  }
+}

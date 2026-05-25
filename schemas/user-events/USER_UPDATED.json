@@ -1,0 +1,11 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["eventType", "userId", "changedFields", "updatedAt"],
+  "properties": {
+    "eventType":     { "type": "string", "const": "USER_UPDATED" },
+    "userId":        { "type": "string" },
+    "changedFields": { "type": "array", "items": { "type": "string" } },
+    "updatedAt":     { "type": "string" }
+  }
+}

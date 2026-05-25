@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["eventType", "orderId", "reason", "cancelledAt", "refundAmount"],
+  "properties": {
+    "eventType":    { "type": "string", "const": "ORDER_CANCELLED" },
+    "orderId":      { "type": "string" },
+    "reason":       { "type": "string", "enum": ["CUSTOMER_REQUEST", "OUT_OF_STOCK", "PAYMENT_FAILED", "FRAUD_DETECTED"] },
+    "cancelledAt":  { "type": "string" },
+    "refundAmount": { "type": "number", "minimum": 0 }
+  }
+}

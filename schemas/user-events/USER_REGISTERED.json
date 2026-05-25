@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["eventType", "userId", "email", "name", "country", "registeredAt"],
+  "properties": {
+    "eventType":    { "type": "string", "const": "USER_REGISTERED" },
+    "userId":       { "type": "string" },
+    "email":        { "type": "string" },
+    "name":         { "type": "string" },
+    "country":      { "type": "string" },
+    "registeredAt": { "type": "string" }
+  }
+}

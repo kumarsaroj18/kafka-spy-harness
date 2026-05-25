@@ -1,0 +1,37 @@
+# Kafka-spy output (generated at runtime)
+inferred-schemas/
+
+# HTML reports (generated at runtime)
+reports/
+
+# Event cache (generated at runtime — reused across runs, regenerate with --fresh)
+events-cache/
+
+# Gradle build artifacts
+producer/.gradle/
+producer/build/
+consumer/.gradle/
+consumer/build/
+
+# Spring Boot logs
+/tmp/producer.log
+/tmp/consumer.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Claude Code — local settings contain machine-specific absolute paths and
+# per-session permission allowlists; not useful to other contributors
+.claude/settings.local.json

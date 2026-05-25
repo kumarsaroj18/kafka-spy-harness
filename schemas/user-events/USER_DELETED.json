@@ -1,0 +1,11 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["eventType", "userId", "reason", "deletedAt"],
+  "properties": {
+    "eventType": { "type": "string", "const": "USER_DELETED" },
+    "userId":    { "type": "string" },
+    "reason":    { "type": "string", "enum": ["USER_REQUEST", "GDPR_ERASURE", "ADMIN_ACTION"] },
+    "deletedAt": { "type": "string" }
+  }
+}
