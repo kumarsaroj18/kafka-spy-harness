@@ -1,0 +1,7 @@
+broker: localhost:9092
+topic: payment-events
+discriminator: eventType
+operation: send
+title: Payment Events API
+version: 1.0.0
+contentType: application/json

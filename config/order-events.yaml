@@ -1,0 +1,7 @@
+broker: localhost:9092
+topic: order-events
+discriminator: eventType
+operation: send
+title: Order Events API
+version: 1.0.0
+contentType: application/json

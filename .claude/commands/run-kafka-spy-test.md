@@ -1,7 +1,7 @@
 # run-kafka-spy-test
 
 End-to-end Kafka Spy test: starts infrastructure, generates (or loads cached) events, runs kafka-spy,
-validates schemas, opens the HTML report.
+generates AsyncAPI 3.0 specs, validates schemas, opens the HTML report.
 
 **Usage**: `/run-kafka-spy-test [sample-size] [--fresh]`
 
@@ -19,6 +19,7 @@ Set these variables for the whole run:
 - `CONSUMER_URL` = `http://localhost:8082`
 - `REPO_ROOT` = absolute path of the project root (find it: the directory containing `docker-compose.yml` and `run-test.sh`)
 - `CACHE_DIR` = `{REPO_ROOT}/events-cache`
+- `ASYNCAPI_DIR` = `{REPO_ROOT}/asyncapi-specs`
 - `SPECMATIC_JAR` = result of: `ls {REPO_ROOT}/../specmatic/application/build/libs/specmatic-executable-*-all-unobfuscated.jar | tail -1`
 
 Print a header: `=== Kafka Spy Manual Test (sample-size=N) ===`  
@@ -168,7 +169,41 @@ Print `Spying on {TOPIC} ...` before each run.
 
 ---
 
-## Step 6 — Validate schemas and generate HTML report
+## Step 6 — Generate AsyncAPI 3.0 specs (×3 topics)
+
+```bash
+rm -rf {REPO_ROOT}/asyncapi-specs
+mkdir -p {REPO_ROOT}/asyncapi-specs
+```
+
+For each topic in `order-events payment-events user-events`:
+```bash
+java -jar {SPECMATIC_JAR} kafka-asyncapi \
+  --config    "{REPO_ROOT}/config/{TOPIC}.yaml" \
+  --output-dir "{REPO_ROOT}/asyncapi-specs" \
+  "{REPO_ROOT}/inferred-schemas/{TOPIC}/"
+```
+
+Print `Generating AsyncAPI spec for {TOPIC} ...` before each run.
+
+Each run writes `{ASYNCAPI_DIR}/{TOPIC}.yaml`.
+
+---
+
+## Step 7 — Validate AsyncAPI specs
+
+```bash
+python3 {REPO_ROOT}/scripts/validate-asyncapi.py \
+  --asyncapi-dir         {REPO_ROOT}/asyncapi-specs \
+  --inferred-schemas-dir {REPO_ROOT}/inferred-schemas
+```
+
+Capture the exit code. Note whether it is 0 (all PASS) or 1 (FAILs present).
+If it fails, print the output and continue to Step 8 (do not abort the run).
+
+---
+
+## Step 8 — Validate schemas and generate HTML report
 
 ```bash
 mkdir -p {REPO_ROOT}/reports
@@ -183,7 +218,7 @@ Capture the exit code. Note whether it is 0 (all PASS) or 1 (FAILs present).
 
 ---
 
-## Step 7 — Consumer stats
+## Step 9 — Consumer stats
 
 ```bash
 curl -s http://localhost:8082/api/status
@@ -208,8 +243,11 @@ docker-compose -f {REPO_ROOT}/docker-compose.yml down
 
 Print:
 ```
+=== AsyncAPI specs: {REPO_ROOT}/asyncapi-specs/ ===
+AsyncAPI: PASS ✅  (or FAIL ❌ if Step 7 exit code was 1)
+
 === Report: {REPO_ROOT}/reports/report.html ===
-Status: PASS ✅  (or FAIL ❌ if exit code was 1)
+Schema:   PASS ✅  (or FAIL ❌ if Step 8 exit code was 1)
 ```
 
 Then open the report in the browser:

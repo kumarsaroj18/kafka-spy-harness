@@ -1,0 +1,123 @@
+asyncapi: 3.0.0
+info:
+  title: Payment Events API
+  version: 1.0.0
+servers:
+  kafka:
+    host: localhost:9092
+    protocol: kafka
+channels:
+  PaymentEvents:
+    address: payment-events
+    messages:
+      PAYMENT_COMPLETED:
+        $ref: "#/components/messages/PAYMENT_COMPLETED"
+      PAYMENT_FAILED:
+        $ref: "#/components/messages/PAYMENT_FAILED"
+      PAYMENT_INITIATED:
+        $ref: "#/components/messages/PAYMENT_INITIATED"
+operations:
+  sendPaymentEvents:
+    action: send
+    channel:
+      $ref: "#/channels/PaymentEvents"
+    messages:
+      - $ref: "#/channels/PaymentEvents/messages/PAYMENT_COMPLETED"
+      - $ref: "#/channels/PaymentEvents/messages/PAYMENT_FAILED"
+      - $ref: "#/channels/PaymentEvents/messages/PAYMENT_INITIATED"
+components:
+  messages:
+    PAYMENT_COMPLETED:
+      name: PAYMENT_COMPLETED
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          eventType:
+            type: string
+            const: PAYMENT_COMPLETED
+          paymentId:
+            type: string
+          transactionId:
+            type: string
+          amount:
+            type: number
+          completedAt:
+            type: string
+        required:
+          - amount
+          - completedAt
+          - eventType
+          - paymentId
+          - transactionId
+    PAYMENT_FAILED:
+      name: PAYMENT_FAILED
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          eventType:
+            type: string
+            const: PAYMENT_FAILED
+          paymentId:
+            type: string
+          errorCode:
+            type: string
+            enum:
+              - CARD_DECLINED
+              - FRAUD_BLOCKED
+              - INSUFFICIENT_FUNDS
+              - TIMEOUT
+          errorMessage:
+            type: string
+            enum:
+              - Card was declined by issuer
+              - Insufficient funds in account
+              - Payment gateway timeout
+              - Transaction blocked by fraud detection
+          failedAt:
+            type: string
+        required:
+          - errorCode
+          - errorMessage
+          - eventType
+          - failedAt
+          - paymentId
+    PAYMENT_INITIATED:
+      name: PAYMENT_INITIATED
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          eventType:
+            type: string
+            const: PAYMENT_INITIATED
+          paymentId:
+            type: string
+          orderId:
+            type: string
+          amount:
+            type: number
+          currency:
+            type: string
+            enum:
+              - EUR
+              - GBP
+              - USD
+          method:
+            type: string
+            enum:
+              - BANK_TRANSFER
+              - CREDIT_CARD
+              - DEBIT_CARD
+              - PAYPAL
+          initiatedAt:
+            type: string
+        required:
+          - amount
+          - currency
+          - eventType
+          - initiatedAt
+          - method
+          - orderId
+          - paymentId

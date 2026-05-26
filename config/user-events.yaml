@@ -1,0 +1,7 @@
+broker: localhost:9092
+topic: user-events
+discriminator: eventType
+operation: send
+title: User Events API
+version: 1.0.0
+contentType: application/json
