@@ -1,20 +1,23 @@
 # run-kafka-spy-test
 
 End-to-end Kafka Spy test: starts infrastructure, generates (or loads cached) events, runs kafka-spy,
-generates AsyncAPI 3.0 specs, validates schemas, opens the HTML report.
+generates AsyncAPI 3.0 specs, and optionally validates schemas and opens the HTML report.
 
-**Usage**: `/run-kafka-spy-test [sample-size] [--fresh]`
+**Usage**: `/run-kafka-spy-test [sample-size] [--fresh] [--report]`
 
 - `sample-size` — events per event type (default: `100`)
 - `--fresh` — discard any existing event cache files and regenerate all events from scratch
+- `--report` — run the JSON schema validator and generate `reports/report.html` (skipped by default)
 
 Parse `$ARGUMENTS`:
 - Check if `--fresh` appears anywhere in the argument string → set FRESH=true, remove it before further parsing
+- Check if `--report` appears anywhere in the argument string → set REPORT=true, remove it before further parsing
 - First remaining token = sample-size (integer, default `100`)
 
 Set these variables for the whole run:
 - `SAMPLE_SIZE` = parsed sample-size
 - `FRESH` = true if `--fresh` was present, false otherwise
+- `REPORT` = true if `--report` was present, false otherwise
 - `PRODUCER_URL` = `http://localhost:8081`
 - `CONSUMER_URL` = `http://localhost:8082`
 - `REPO_ROOT` = absolute path of the project root (find it: the directory containing `docker-compose.yml` and `run-test.sh`)
@@ -203,8 +206,11 @@ If it fails, print the output and continue to Step 8 (do not abort the run).
 
 ---
 
-## Step 8 — Validate schemas and generate HTML report
+## Step 8 — Validate schemas and generate HTML report _(only if `--report` was passed)_
 
+Skip this step entirely if `REPORT` is false.
+
+If `REPORT` is true:
 ```bash
 mkdir -p {REPO_ROOT}/reports
 python3 {REPO_ROOT}/scripts/validate-and-report.py \
@@ -241,16 +247,19 @@ docker-compose -f {REPO_ROOT}/docker-compose.yml down
 
 ## Final summary
 
-Print:
+Always print:
 ```
 === AsyncAPI specs: {REPO_ROOT}/asyncapi-specs/ ===
 AsyncAPI: PASS ✅  (or FAIL ❌ if Step 7 exit code was 1)
+```
 
+If `REPORT` is true, also print:
+```
 === Report: {REPO_ROOT}/reports/report.html ===
 Schema:   PASS ✅  (or FAIL ❌ if Step 8 exit code was 1)
 ```
 
-Then open the report in the browser:
+Then, only if `REPORT` is true, open the report in the browser:
 ```bash
 open {REPO_ROOT}/reports/report.html
 ```

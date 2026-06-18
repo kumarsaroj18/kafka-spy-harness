@@ -205,6 +205,12 @@ Then run the skill:
 
 Replace `100` with however many events per event type you want (larger samples give kafka-spy more data for accurate enum detection).
 
+Add `--report` to also run the JSON schema validator and open the HTML report:
+
+```
+/run-kafka-spy-test 100 --report
+```
+
 Claude will:
 1. Start Kafka via Docker Compose
 2. Start the consumer app (port 8082)
@@ -213,10 +219,10 @@ Claude will:
 5. Run kafka-spy against all three topics → writes `inferred-schemas/`
 6. Run `kafka-asyncapi` against all three topics → writes `asyncapi-specs/`
 7. Validate the generated AsyncAPI specs
-8. Run the JSON schema validator and generate `reports/report.html`
+8. _(only with `--report`)_ Run the JSON schema validator and generate `reports/report.html`
 9. Show consumer received-counts
 10. Stop the apps and Kafka
-11. Open the HTML report in your browser
+11. _(only with `--report`)_ Open the HTML report in your browser
 
 ---
 
@@ -474,7 +480,7 @@ Requires the producer to already be running.
 /generate-events 500 --fresh          # discard cache, regenerate everything
 ```
 
-### `/run-kafka-spy-test [sample-size] [--fresh]`
+### `/run-kafka-spy-test [sample-size] [--fresh] [--report]`
 
 Full end-to-end orchestration — starts everything, runs the test, cleans up. This is the primary
 entry point for a complete test cycle.
@@ -482,7 +488,9 @@ entry point for a complete test cycle.
 ```
 /run-kafka-spy-test
 /run-kafka-spy-test 200
-/run-kafka-spy-test 500 --fresh       # discard cache, regenerate everything
+/run-kafka-spy-test 500 --fresh         # discard cache, regenerate everything
+/run-kafka-spy-test 200 --report        # also validate schemas and open HTML report
+/run-kafka-spy-test 500 --fresh --report
 ```
 
 ---
@@ -597,7 +605,6 @@ kafka-spy-manual-test/
 │   └── validate-asyncapi.py         ← structural validation of generated AsyncAPI 3.0 YAML
 ├── docker-compose.yml               ← Confluent ZooKeeper + Kafka 7.6.0
 ├── run-test.sh                      ← shell orchestration (steps 1-3, 5-8)
-├── PLAN.md                          ← implementation plan
 └── .gitignore
 ```
 
