@@ -1,0 +1,27 @@
+{
+  "type" : "object",
+  "properties" : {
+    "eventType" : {
+      "type" : "string",
+      "enum" : [ "ORDER_SHIPPED" ]
+    },
+    "orderId" : {
+      "type" : "string"
+    },
+    "trackingNumber" : {
+      "type" : "string"
+    },
+    "carrier" : {
+      "type" : "string",
+      "enum" : [ "DHL", "FEDEX", "UPS", "USPS" ]
+    },
+    "shippedAt" : {
+      "type" : "string"
+    },
+    "estimatedDelivery" : {
+      "type" : "string"
+    }
+  },
+  "required" : [ "carrier", "estimatedDelivery", "eventType", "orderId", "shippedAt", "trackingNumber" ],
+  "$schema" : "http://json-schema.org/draft-07/schema#"
+}

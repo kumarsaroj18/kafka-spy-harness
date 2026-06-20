@@ -1,0 +1,6 @@
+broker: localhost:9092
+topic: shape-events
+operation: send
+title: Shape Events API
+version: 1.0.0
+contentType: application/json

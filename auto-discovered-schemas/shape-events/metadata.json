@@ -1,0 +1,10 @@
+{
+  "discriminatorResultType" : "IMPLICIT_SHAPE",
+  "clusterSignatures" : [ {
+    "schemaFile" : "accountNumber.json",
+    "signaturePaths" : [ "accountNumber", "bankName", "routingNumber" ]
+  }, {
+    "schemaFile" : "cardNumber.json",
+    "signaturePaths" : [ "cardNumber", "cvv", "expiry" ]
+  } ]
+}

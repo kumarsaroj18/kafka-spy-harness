@@ -1,0 +1,27 @@
+{
+  "type" : "object",
+  "properties" : {
+    "eventType" : {
+      "type" : "string",
+      "enum" : [ "USER_REGISTERED" ]
+    },
+    "userId" : {
+      "type" : "string"
+    },
+    "email" : {
+      "type" : "string"
+    },
+    "name" : {
+      "type" : "string"
+    },
+    "country" : {
+      "type" : "string",
+      "enum" : [ "AU", "BR", "CA", "DE", "FR", "GB", "IN", "JP", "MX", "US" ]
+    },
+    "registeredAt" : {
+      "type" : "string"
+    }
+  },
+  "required" : [ "country", "email", "eventType", "name", "registeredAt", "userId" ],
+  "$schema" : "http://json-schema.org/draft-07/schema#"
+}

@@ -1,0 +1,45 @@
+{
+  "type" : "object",
+  "properties" : {
+    "eventType" : {
+      "type" : "string",
+      "enum" : [ "ORDER_CREATED" ]
+    },
+    "orderId" : {
+      "type" : "string"
+    },
+    "customerId" : {
+      "type" : "string"
+    },
+    "items" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "properties" : {
+          "productId" : {
+            "type" : "string"
+          },
+          "quantity" : {
+            "type" : "integer"
+          },
+          "unitPrice" : {
+            "type" : "number"
+          }
+        },
+        "required" : [ "productId", "quantity", "unitPrice" ]
+      }
+    },
+    "totalAmount" : {
+      "type" : "number"
+    },
+    "currency" : {
+      "type" : "string",
+      "enum" : [ "EUR", "GBP", "USD" ]
+    },
+    "createdAt" : {
+      "type" : "string"
+    }
+  },
+  "required" : [ "createdAt", "currency", "customerId", "eventType", "items", "orderId", "totalAmount" ],
+  "$schema" : "http://json-schema.org/draft-07/schema#"
+}

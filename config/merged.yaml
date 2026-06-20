@@ -1,0 +1,6 @@
+broker: localhost:9092
+operation: send
+title: All Kafka Events API
+version: 1.0.0
+contentType: application/json
+output-file: all-kafka-events.yaml

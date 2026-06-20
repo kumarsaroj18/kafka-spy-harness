@@ -1,0 +1,19 @@
+{
+  "type" : "object",
+  "properties" : {
+    "cardNumber" : {
+      "type" : "string"
+    },
+    "expiry" : {
+      "type" : "string"
+    },
+    "cvv" : {
+      "type" : "string"
+    },
+    "amount" : {
+      "type" : "number"
+    }
+  },
+  "required" : [ "amount", "cardNumber", "cvv", "expiry" ],
+  "$schema" : "http://json-schema.org/draft-07/schema#"
+}

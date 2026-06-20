@@ -1,0 +1,519 @@
+asyncapi: 3.0.0
+info:
+  title: All Kafka Events API
+  version: 1.0.0
+servers:
+  kafka:
+    host: localhost:9092
+    protocol: kafka
+channels:
+  InferredEvents:
+    address: inferred-events
+    messages:
+      INVENTORY_ADJUSTED:
+        $ref: "#/components/messages/INVENTORY_ADJUSTED"
+      ITEM_ADDED:
+        $ref: "#/components/messages/ITEM_ADDED"
+      ITEM_REMOVED:
+        $ref: "#/components/messages/ITEM_REMOVED"
+  OrderEvents:
+    address: order-events
+    messages:
+      ORDER_CANCELLED:
+        $ref: "#/components/messages/ORDER_CANCELLED"
+      ORDER_CREATED:
+        $ref: "#/components/messages/ORDER_CREATED"
+      ORDER_SHIPPED:
+        $ref: "#/components/messages/ORDER_SHIPPED"
+  PaymentEvents:
+    address: payment-events
+    messages:
+      PAYMENT_COMPLETED:
+        $ref: "#/components/messages/PAYMENT_COMPLETED"
+      PAYMENT_FAILED:
+        $ref: "#/components/messages/PAYMENT_FAILED"
+      PAYMENT_INITIATED:
+        $ref: "#/components/messages/PAYMENT_INITIATED"
+  ShapeEvents:
+    address: shape-events
+    messages:
+      accountNumber:
+        $ref: "#/components/messages/accountNumber"
+      cardNumber:
+        $ref: "#/components/messages/cardNumber"
+  UntypedEvents:
+    address: untyped-events
+    messages:
+      untyped-events:
+        $ref: "#/components/messages/untyped-events"
+  UserEvents:
+    address: user-events
+    messages:
+      USER_DELETED:
+        $ref: "#/components/messages/USER_DELETED"
+      USER_REGISTERED:
+        $ref: "#/components/messages/USER_REGISTERED"
+      USER_UPDATED:
+        $ref: "#/components/messages/USER_UPDATED"
+operations:
+  sendInferredEvents:
+    action: send
+    channel:
+      $ref: "#/channels/InferredEvents"
+    messages:
+      - $ref: "#/channels/InferredEvents/messages/INVENTORY_ADJUSTED"
+      - $ref: "#/channels/InferredEvents/messages/ITEM_ADDED"
+      - $ref: "#/channels/InferredEvents/messages/ITEM_REMOVED"
+  sendOrderEvents:
+    action: send
+    channel:
+      $ref: "#/channels/OrderEvents"
+    messages:
+      - $ref: "#/channels/OrderEvents/messages/ORDER_CANCELLED"
+      - $ref: "#/channels/OrderEvents/messages/ORDER_CREATED"
+      - $ref: "#/channels/OrderEvents/messages/ORDER_SHIPPED"
+  sendPaymentEvents:
+    action: send
+    channel:
+      $ref: "#/channels/PaymentEvents"
+    messages:
+      - $ref: "#/channels/PaymentEvents/messages/PAYMENT_COMPLETED"
+      - $ref: "#/channels/PaymentEvents/messages/PAYMENT_FAILED"
+      - $ref: "#/channels/PaymentEvents/messages/PAYMENT_INITIATED"
+  sendShapeEvents:
+    action: send
+    channel:
+      $ref: "#/channels/ShapeEvents"
+    messages:
+      - $ref: "#/channels/ShapeEvents/messages/accountNumber"
+      - $ref: "#/channels/ShapeEvents/messages/cardNumber"
+  sendUntypedEvents:
+    action: send
+    channel:
+      $ref: "#/channels/UntypedEvents"
+    messages:
+      - $ref: "#/channels/UntypedEvents/messages/untyped-events"
+  sendUserEvents:
+    action: send
+    channel:
+      $ref: "#/channels/UserEvents"
+    messages:
+      - $ref: "#/channels/UserEvents/messages/USER_DELETED"
+      - $ref: "#/channels/UserEvents/messages/USER_REGISTERED"
+      - $ref: "#/channels/UserEvents/messages/USER_UPDATED"
+components:
+  messages:
+    INVENTORY_ADJUSTED:
+      name: INVENTORY_ADJUSTED
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          action:
+            type: string
+            const: INVENTORY_ADJUSTED
+          itemId:
+            type: string
+          delta:
+            type: integer
+          adjustedBy:
+            type: string
+        required:
+          - action
+          - adjustedBy
+          - delta
+          - itemId
+    ITEM_ADDED:
+      name: ITEM_ADDED
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          action:
+            type: string
+            const: ITEM_ADDED
+          itemId:
+            type: string
+          name:
+            type: string
+          quantity:
+            type: integer
+          category:
+            type: string
+            enum:
+              - clothing
+              - electronics
+              - food
+              - sports
+        required:
+          - action
+          - category
+          - itemId
+          - name
+          - quantity
+    ITEM_REMOVED:
+      name: ITEM_REMOVED
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          action:
+            type: string
+            const: ITEM_REMOVED
+          itemId:
+            type: string
+          reason:
+            type: string
+            enum:
+              - damaged
+              - discontinued
+              - out-of-stock
+              - recalled
+        required:
+          - action
+          - itemId
+          - reason
+    ORDER_CANCELLED:
+      name: ORDER_CANCELLED
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          eventType:
+            type: string
+            const: ORDER_CANCELLED
+          orderId:
+            type: string
+          reason:
+            type: string
+            enum:
+              - CUSTOMER_REQUEST
+              - FRAUD_DETECTED
+              - OUT_OF_STOCK
+              - PAYMENT_FAILED
+          cancelledAt:
+            type: string
+          refundAmount:
+            type: number
+        required:
+          - cancelledAt
+          - eventType
+          - orderId
+          - reason
+          - refundAmount
+    ORDER_CREATED:
+      name: ORDER_CREATED
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          eventType:
+            type: string
+            const: ORDER_CREATED
+          orderId:
+            type: string
+          customerId:
+            type: string
+          items:
+            type: array
+            items:
+              type: object
+              properties:
+                productId:
+                  type: string
+                quantity:
+                  type: integer
+                unitPrice:
+                  type: number
+              required:
+                - productId
+                - quantity
+                - unitPrice
+          totalAmount:
+            type: number
+          currency:
+            type: string
+            enum:
+              - EUR
+              - GBP
+              - USD
+          createdAt:
+            type: string
+        required:
+          - createdAt
+          - currency
+          - customerId
+          - eventType
+          - items
+          - orderId
+          - totalAmount
+    ORDER_SHIPPED:
+      name: ORDER_SHIPPED
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          eventType:
+            type: string
+            const: ORDER_SHIPPED
+          orderId:
+            type: string
+          trackingNumber:
+            type: string
+          carrier:
+            type: string
+            enum:
+              - DHL
+              - FEDEX
+              - UPS
+              - USPS
+          shippedAt:
+            type: string
+          estimatedDelivery:
+            type: string
+        required:
+          - carrier
+          - estimatedDelivery
+          - eventType
+          - orderId
+          - shippedAt
+          - trackingNumber
+    PAYMENT_COMPLETED:
+      name: PAYMENT_COMPLETED
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          eventType:
+            type: string
+            const: PAYMENT_COMPLETED
+          paymentId:
+            type: string
+          transactionId:
+            type: string
+          amount:
+            type: number
+          completedAt:
+            type: string
+        required:
+          - amount
+          - completedAt
+          - eventType
+          - paymentId
+          - transactionId
+    PAYMENT_FAILED:
+      name: PAYMENT_FAILED
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          eventType:
+            type: string
+            const: PAYMENT_FAILED
+          paymentId:
+            type: string
+          errorCode:
+            type: string
+            enum:
+              - CARD_DECLINED
+              - FRAUD_BLOCKED
+              - INSUFFICIENT_FUNDS
+              - TIMEOUT
+          errorMessage:
+            type: string
+          failedAt:
+            type: string
+        required:
+          - errorCode
+          - errorMessage
+          - eventType
+          - failedAt
+          - paymentId
+    PAYMENT_INITIATED:
+      name: PAYMENT_INITIATED
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          eventType:
+            type: string
+            const: PAYMENT_INITIATED
+          paymentId:
+            type: string
+          orderId:
+            type: string
+          amount:
+            type: number
+          currency:
+            type: string
+            enum:
+              - EUR
+              - GBP
+              - USD
+          method:
+            type: string
+            enum:
+              - BANK_TRANSFER
+              - CREDIT_CARD
+              - DEBIT_CARD
+              - PAYPAL
+          initiatedAt:
+            type: string
+        required:
+          - amount
+          - currency
+          - eventType
+          - initiatedAt
+          - method
+          - orderId
+          - paymentId
+    accountNumber:
+      name: accountNumber
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          routingNumber:
+            type: string
+          accountNumber:
+            type: string
+          bankName:
+            type: string
+            enum:
+              - City Trust
+              - Coastal Bank
+              - First National
+              - Heritage Savings
+              - Union Federal
+          amount:
+            type: number
+        required:
+          - accountNumber
+          - amount
+          - bankName
+          - routingNumber
+    cardNumber:
+      name: cardNumber
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          cardNumber:
+            type: string
+          expiry:
+            type: string
+          cvv:
+            type: string
+          amount:
+            type: number
+        required:
+          - amount
+          - cardNumber
+          - cvv
+          - expiry
+    untyped-events:
+      name: untyped-events
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          serviceId:
+            type: string
+          timestamp:
+            type: string
+          healthy:
+            type: boolean
+          uptimeSeconds:
+            type: integer
+        required:
+          - healthy
+          - serviceId
+          - timestamp
+          - uptimeSeconds
+    USER_DELETED:
+      name: USER_DELETED
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          eventType:
+            type: string
+            const: USER_DELETED
+          userId:
+            type: string
+          reason:
+            type: string
+            enum:
+              - ADMIN_ACTION
+              - GDPR_ERASURE
+              - USER_REQUEST
+          deletedAt:
+            type: string
+        required:
+          - deletedAt
+          - eventType
+          - reason
+          - userId
+    USER_REGISTERED:
+      name: USER_REGISTERED
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          eventType:
+            type: string
+            const: USER_REGISTERED
+          userId:
+            type: string
+          email:
+            type: string
+          name:
+            type: string
+          country:
+            type: string
+            enum:
+              - AU
+              - BR
+              - CA
+              - DE
+              - FR
+              - GB
+              - IN
+              - JP
+              - MX
+              - US
+          registeredAt:
+            type: string
+        required:
+          - country
+          - email
+          - eventType
+          - name
+          - registeredAt
+          - userId
+    USER_UPDATED:
+      name: USER_UPDATED
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          eventType:
+            type: string
+            const: USER_UPDATED
+          userId:
+            type: string
+          changedFields:
+            type: array
+            items:
+              type: string
+              enum:
+                - country
+                - email
+                - name
+          updatedAt:
+            type: string
+        required:
+          - changedFields
+          - eventType
+          - updatedAt
+          - userId

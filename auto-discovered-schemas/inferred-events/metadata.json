@@ -1,0 +1,4 @@
+{
+  "discriminatorResultType" : "EXPLICIT_SINGLE",
+  "discriminatorField" : "action"
+}

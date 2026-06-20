@@ -6,7 +6,7 @@ Usage:
     python3 scripts/generate_events.py <EVENT_TYPE> <count> <cache_dir> [--append]
 
 Arguments:
-    EVENT_TYPE   One of the 9 supported event types (e.g. ORDER_CREATED)
+    EVENT_TYPE   One of the 15 supported event types (e.g. ORDER_CREATED)
     count        Number of events to generate
     cache_dir    Directory where <EVENT_TYPE>.json cache files live
     --append     Append generated events to the existing cache file instead of
@@ -68,10 +68,27 @@ _CANCEL_REASONS = ["CUSTOMER_REQUEST", "OUT_OF_STOCK", "PAYMENT_FAILED", "FRAUD_
 _PAYMENT_METHODS = ["CREDIT_CARD", "DEBIT_CARD", "PAYPAL", "BANK_TRANSFER"]
 _ERROR_CODES = ["INSUFFICIENT_FUNDS", "CARD_DECLINED", "TIMEOUT", "FRAUD_BLOCKED"]
 _ERROR_MESSAGES = {
-    "INSUFFICIENT_FUNDS": "Insufficient funds in account",
-    "CARD_DECLINED": "Card was declined by the issuer",
-    "TIMEOUT": "Payment gateway timeout — please retry",
-    "FRAUD_BLOCKED": "Transaction blocked by fraud detection",
+    "INSUFFICIENT_FUNDS": [
+        "Insufficient funds in account",
+        "Account balance too low to complete transaction",
+        "Payment declined: insufficient account balance",
+    ],
+    "CARD_DECLINED": [
+        "Card was declined by the issuer",
+        "Card issuer rejected the charge",
+        "Payment card declined — contact your bank",
+    ],
+    "TIMEOUT": [
+        "Payment gateway timeout — please retry",
+        "Gateway did not respond in time",
+        "Request timed out, please try again",
+        "Connection to payment provider timed out",
+    ],
+    "FRAUD_BLOCKED": [
+        "Transaction blocked by fraud detection",
+        "Suspicious activity detected — payment blocked",
+        "Fraud risk threshold exceeded",
+    ],
 }
 _COUNTRIES = ["US", "GB", "DE", "FR", "JP", "CA", "AU", "BR", "IN", "MX"]
 _DELETE_REASONS = ["USER_REQUEST", "GDPR_ERASURE", "ADMIN_ACTION"]
@@ -88,6 +105,20 @@ _PRODUCT_IDS = [f"PROD-{i:04d}" for i in range(1, 51)]
 _FIRST_NAMES = ["Alice", "Bob", "Carlos", "Diana", "Ethan", "Fatima", "George", "Hannah", "Ivan", "Julia"]
 _LAST_NAMES = ["Smith", "Johnson", "Garcia", "Brown", "Lee", "Kim", "Patel", "Singh", "Wang", "Chen"]
 _EMAIL_DOMAINS = ["gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "example.com"]
+_ITEM_NAMES = ["Widget", "Gadget", "Doohickey", "Thingamajig", "Gizmo",
+               "Sprocket", "Cog", "Bolt", "Lever", "Pulley",
+               "Wrench", "Gear", "Rivet", "Clamp", "Hinge"]
+_ITEM_CATEGORIES = ["electronics", "clothing", "food", "sports"]
+_REMOVE_REASONS = ["out-of-stock", "discontinued", "damaged", "recalled"]
+_ADJUST_EMAILS = [
+    "admin@example.com", "ops@warehouse.com", "manager@supply.com",
+    "stock@fulfillment.com", "supervisor@warehouse.com", "lead@ops.com",
+    "coordinator@supply.com", "analyst@logistics.com", "planner@inventory.com",
+    "director@supply.com", "controller@warehouse.com", "auditor@ops.com",
+]
+_SERVICE_IDS = [f"svc-{i:03d}" for i in range(1, 21)]
+_BANK_NAMES = ["First National", "City Trust", "Coastal Bank",
+               "Union Federal", "Heritage Savings"]
 
 
 def _gen_order_created(i: int) -> dict:
@@ -163,7 +194,7 @@ def _gen_payment_failed(i: int) -> dict:
         "eventType": "PAYMENT_FAILED",
         "paymentId": rand_uuid(),
         "errorCode": code,
-        "errorMessage": _ERROR_MESSAGES[code],
+        "errorMessage": random.choice(_ERROR_MESSAGES[code]),
         "failedAt": rand_ts(),
     }
 
@@ -199,6 +230,67 @@ def _gen_user_deleted(i: int) -> dict:
     }
 
 
+def _gen_item_added(i: int) -> dict:
+    return {
+        "action":   "ITEM_ADDED",
+        "itemId":   rand_uuid(),
+        "name":     random.choice(_ITEM_NAMES),
+        "quantity": random.randint(1, 100),
+        "category": cycle(_ITEM_CATEGORIES, i),
+    }
+
+
+def _gen_item_removed(i: int) -> dict:
+    return {
+        "action": "ITEM_REMOVED",
+        "itemId": rand_uuid(),
+        "reason": cycle(_REMOVE_REASONS, i),
+    }
+
+
+def _gen_inventory_adjusted(i: int) -> dict:
+    delta = random.choice([d for d in range(-50, 51) if d != 0])
+    return {
+        "action":     "INVENTORY_ADJUSTED",
+        "itemId":     rand_uuid(),
+        "delta":      delta,
+        "adjustedBy": cycle(_ADJUST_EMAILS, i),
+    }
+
+
+def _gen_heartbeat(i: int) -> dict:
+    # No action/eventType field — exactly 4 fields always, same structure every time.
+    # This is intentional: kafka-spy must infer NoVariants → SingleType.
+    return {
+        "serviceId":     cycle(_SERVICE_IDS, i),
+        "timestamp":     rand_ts(),
+        "healthy":       random.choice([True, False]),
+        "uptimeSeconds": random.randint(0, 86400),
+    }
+
+
+def _gen_card_payment(_i: int) -> dict:
+    # No eventType, action, type, kind — only field shared with BANK_TRANSFER is 'amount'.
+    month = random.randint(1, 12)
+    year = random.randint(25, 30)
+    return {
+        "cardNumber": "".join(str(random.randint(0, 9)) for _ in range(16)),
+        "expiry":     f"{month:02d}/{year}",
+        "cvv":        "".join(str(random.randint(0, 9)) for _ in range(3)),
+        "amount":     round(random.uniform(1.0, 999.99), 2),
+    }
+
+
+def _gen_bank_transfer(_i: int) -> dict:
+    # No eventType, action, type, kind — shares only 'amount' with CARD_PAYMENT.
+    return {
+        "routingNumber": "".join(str(random.randint(0, 9)) for _ in range(9)),
+        "accountNumber": "".join(str(random.randint(0, 9)) for _ in range(random.randint(8, 12))),
+        "bankName":      random.choice(_BANK_NAMES),
+        "amount":        round(random.uniform(1.0, 9999.99), 2),
+    }
+
+
 _GENERATORS = {
     "ORDER_CREATED":      _gen_order_created,
     "ORDER_SHIPPED":      _gen_order_shipped,
@@ -209,6 +301,12 @@ _GENERATORS = {
     "USER_REGISTERED":    _gen_user_registered,
     "USER_UPDATED":       _gen_user_updated,
     "USER_DELETED":       _gen_user_deleted,
+    "ITEM_ADDED":         _gen_item_added,
+    "ITEM_REMOVED":       _gen_item_removed,
+    "INVENTORY_ADJUSTED": _gen_inventory_adjusted,
+    "HEARTBEAT":          _gen_heartbeat,
+    "CARD_PAYMENT":       _gen_card_payment,
+    "BANK_TRANSFER":      _gen_bank_transfer,
 }
 
 

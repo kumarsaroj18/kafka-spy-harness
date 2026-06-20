@@ -1,0 +1,31 @@
+{
+  "type" : "object",
+  "properties" : {
+    "eventType" : {
+      "type" : "string",
+      "enum" : [ "PAYMENT_INITIATED" ]
+    },
+    "paymentId" : {
+      "type" : "string"
+    },
+    "orderId" : {
+      "type" : "string"
+    },
+    "amount" : {
+      "type" : "number"
+    },
+    "currency" : {
+      "type" : "string",
+      "enum" : [ "EUR", "GBP", "USD" ]
+    },
+    "method" : {
+      "type" : "string",
+      "enum" : [ "BANK_TRANSFER", "CREDIT_CARD", "DEBIT_CARD", "PAYPAL" ]
+    },
+    "initiatedAt" : {
+      "type" : "string"
+    }
+  },
+  "required" : [ "amount", "currency", "eventType", "initiatedAt", "method", "orderId", "paymentId" ],
+  "$schema" : "http://json-schema.org/draft-07/schema#"
+}

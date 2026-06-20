@@ -1,0 +1,11 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["serviceId", "timestamp", "healthy", "uptimeSeconds"],
+  "properties": {
+    "serviceId":     { "type": "string" },
+    "timestamp":     { "type": "string" },
+    "healthy":       { "type": "boolean" },
+    "uptimeSeconds": { "type": "integer", "minimum": 0 }
+  }
+}

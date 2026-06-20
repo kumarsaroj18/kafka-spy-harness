@@ -1,0 +1,11 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["action", "itemId", "delta", "adjustedBy"],
+  "properties": {
+    "action":     { "type": "string", "const": "INVENTORY_ADJUSTED" },
+    "itemId":     { "type": "string" },
+    "delta":      { "type": "integer" },
+    "adjustedBy": { "type": "string", "format": "email" }
+  }
+}

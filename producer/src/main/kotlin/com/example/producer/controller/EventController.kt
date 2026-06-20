@@ -20,10 +20,22 @@ class EventController(private val service: EventProducerService) {
     fun publishBulk(@RequestBody events: List<JsonNode>): Map<String, Any> {
         var count = 0
         events.forEach { event ->
-            val eventType = event.get("eventType")?.asText() ?: return@forEach
+            // Try eventType first (existing 9 types), fall back to action (inferred-events types).
+            val eventType = event.get("eventType")?.asText()
+                ?: event.get("action")?.asText()
+                ?: return@forEach
             service.publish(eventType, event)
             count++
         }
         return mapOf("status" to "ok", "published" to count)
+    }
+
+    @PostMapping("/raw")
+    fun publishRaw(
+        @RequestParam topic: String,
+        @RequestBody events: List<JsonNode>
+    ): Map<String, Any> {
+        events.forEach { service.publishToTopic(topic, it) }
+        return mapOf("status" to "ok", "published" to events.size)
     }
 }

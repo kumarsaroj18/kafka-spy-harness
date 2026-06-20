@@ -1,0 +1,11 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["routingNumber", "accountNumber", "bankName", "amount"],
+  "properties": {
+    "routingNumber":  { "type": "string" },
+    "accountNumber":  { "type": "string" },
+    "bankName":       { "type": "string" },
+    "amount":         { "type": "number", "minimum": 0 }
+  }
+}

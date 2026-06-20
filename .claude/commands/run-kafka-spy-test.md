@@ -25,6 +25,11 @@ Set these variables for the whole run:
 - `ASYNCAPI_DIR` = `{REPO_ROOT}/asyncapi-specs`
 - `SPECMATIC_JAR` = result of: `ls {REPO_ROOT}/../specmatic/application/build/libs/specmatic-executable-*-all-unobfuscated.jar | tail -1`
 
+> **Tip — rebuild JAR after source changes:** If kafka-spy or application source was modified since the JAR was built, rebuild with:
+> ```bash
+> cd {REPO_ROOT}/../specmatic && ./gradlew :specmatic-executable:unobfuscatedShadowJar
+> ```
+
 Print a header: `=== Kafka Spy Manual Test (sample-size=N) ===`  
 If `--fresh` was set, also print: `🔄 --fresh: event cache will be discarded and regenerated`
 
@@ -81,16 +86,29 @@ Use `scripts/generate_events.py` to create or top up cache files, and
 
 ### Cache decision (per event type)
 
+All 15 event types:
+```
+ORDER_CREATED ORDER_SHIPPED ORDER_CANCELLED
+PAYMENT_INITIATED PAYMENT_COMPLETED PAYMENT_FAILED
+USER_REGISTERED USER_UPDATED USER_DELETED
+ITEM_ADDED ITEM_REMOVED INVENTORY_ADJUSTED
+HEARTBEAT
+CARD_PAYMENT BANK_TRANSFER
+```
+
 #### If `--fresh` is set
 
-Delete all cache files, then generate fresh events for all 9 types:
+Delete all cache files, then generate fresh events for all 15 types:
 
 ```bash
 rm -rf {CACHE_DIR}
 mkdir -p {CACHE_DIR}
 for EVENT_TYPE in ORDER_CREATED ORDER_SHIPPED ORDER_CANCELLED \
                   PAYMENT_INITIATED PAYMENT_COMPLETED PAYMENT_FAILED \
-                  USER_REGISTERED USER_UPDATED USER_DELETED; do
+                  USER_REGISTERED USER_UPDATED USER_DELETED \
+                  ITEM_ADDED ITEM_REMOVED INVENTORY_ADJUSTED \
+                  HEARTBEAT \
+                  CARD_PAYMENT BANK_TRANSFER; do
   python3 {REPO_ROOT}/scripts/generate_events.py $EVENT_TYPE {SAMPLE_SIZE} {CACHE_DIR}
 done
 ```
@@ -136,72 +154,161 @@ Print:
 
 ### Publishing
 
-Once all 9 cache files are ready, publish everything in a single call:
+Once all 15 cache files are ready, publish everything in a single call:
 
 ```bash
 python3 {REPO_ROOT}/scripts/publish_events.py {SAMPLE_SIZE} {CACHE_DIR} {PRODUCER_URL}
 ```
 
 The script POSTs events interleaved by topic in round-robin batches of ≤ 50:
-- **order-events**: ORDER_CREATED → ORDER_SHIPPED → ORDER_CANCELLED
-- **payment-events**: PAYMENT_INITIATED → PAYMENT_COMPLETED → PAYMENT_FAILED
-- **user-events**: USER_REGISTERED → USER_UPDATED → USER_DELETED
+- **order-events**: ORDER_CREATED → ORDER_SHIPPED → ORDER_CANCELLED (via `/api/events/bulk`)
+- **payment-events**: PAYMENT_INITIATED → PAYMENT_COMPLETED → PAYMENT_FAILED (via `/api/events/bulk`)
+- **user-events**: USER_REGISTERED → USER_UPDATED → USER_DELETED (via `/api/events/bulk`)
+- **inferred-events**: ITEM_ADDED → ITEM_REMOVED → INVENTORY_ADJUSTED (via `/api/events/bulk`, action field routing)
+- **untyped-events**: HEARTBEAT (via `/api/events/raw?topic=untyped-events`)
+- **shape-events**: CARD_PAYMENT → BANK_TRANSFER (via `/api/events/raw?topic=shape-events`)
 
 It prints `✓ {EVENT_TYPE}: published N` after each type and exits with code 1 on any POST failure.
 
 ---
 
-## Step 5 — Run kafka-spy (×3 topics)
+## Step 5 — Run kafka-spy (×6 topics)
 
 ```bash
 rm -rf {REPO_ROOT}/inferred-schemas
 ```
 
-For each topic in `order-events payment-events user-events`:
+**IMPORTANT — output root:** Always pass `"{REPO_ROOT}/inferred-schemas/"` as the output root
+(NOT `inferred-schemas/$TOPIC/`). kafka-spy always appends `<topic-name>/` to the output root, so
+using the root directly produces the correct flat layout (`inferred-schemas/order-events/*.json`)
+that `kafka-asyncapi-merged` and the validators expect.
+
+### Existing 3 topics (explicit discriminator — probe phase skipped → EXPLICIT_SINGLE in metadata.json)
+
 ```bash
-java -jar {SPECMATIC_JAR} kafka-spy \
-  --broker    localhost:9092 \
-  --topic     {TOPIC} \
-  --discriminator eventType \
-  --sample-size   {SAMPLE_SIZE} \
-  --offset    beginning \
-  "{REPO_ROOT}/inferred-schemas/{TOPIC}/"
+for TOPIC in order-events payment-events user-events; do
+  echo "Spying on $TOPIC (explicit discriminator) ..."
+  java -jar {SPECMATIC_JAR} kafka-spy \
+    --broker    localhost:9092 \
+    --topic     $TOPIC \
+    --discriminator eventType \
+    --sample-size   {SAMPLE_SIZE} \
+    --offset    beginning \
+    "{REPO_ROOT}/inferred-schemas/"
+done
 ```
 
-Print `Spying on {TOPIC} ...` before each run.
+### New 3 topics (no discriminator — auto-inference runs)
+
+```bash
+echo "Spying on inferred-events (expected: EXPLICIT_SINGLE / action) ..."
+java -jar {SPECMATIC_JAR} kafka-spy \
+  --broker localhost:9092 \
+  --topic inferred-events \
+  --probe-count 60 \
+  --probe-duration-ms 30000 \
+  --sample-size {SAMPLE_SIZE} \
+  --offset beginning \
+  "{REPO_ROOT}/inferred-schemas/"
+
+echo "Spying on untyped-events (expected: SINGLE_TYPE) ..."
+java -jar {SPECMATIC_JAR} kafka-spy \
+  --broker localhost:9092 \
+  --topic untyped-events \
+  --probe-count 60 \
+  --probe-duration-ms 30000 \
+  --sample-size {SAMPLE_SIZE} \
+  --offset beginning \
+  "{REPO_ROOT}/inferred-schemas/"
+
+echo "Spying on shape-events (expected: IMPLICIT_SHAPE) ..."
+java -jar {SPECMATIC_JAR} kafka-spy \
+  --broker localhost:9092 \
+  --topic shape-events \
+  --probe-count 60 \
+  --probe-duration-ms 30000 \
+  --sample-size {SAMPLE_SIZE} \
+  --offset beginning \
+  "{REPO_ROOT}/inferred-schemas/"
+```
 
 ---
 
-## Step 6 — Generate AsyncAPI 3.0 specs (×3 topics)
+## Step 5b — Topic auto-discovery smoke test
+
+Write to `auto-discovered-schemas/` (NOT inside `inferred-schemas/`) to avoid polluting
+the metadata and asyncapi validators which scan all subdirectories of `inferred-schemas/`.
+
+```bash
+echo "Running auto-discovery smoke test ..."
+rm -rf {REPO_ROOT}/auto-discovered-schemas
+
+java -jar {SPECMATIC_JAR} kafka-spy \
+  --broker localhost:9092 \
+  --probe-count 30 \
+  --probe-duration-ms 15000 \
+  --sample-size 10 \
+  --offset beginning \
+  "{REPO_ROOT}/auto-discovered-schemas/"
+```
+
+Count discovered topic directories:
+```bash
+DISCOVERED=$(ls -d {REPO_ROOT}/auto-discovered-schemas/*/ 2>/dev/null | wc -l | tr -d ' ')
+if [ "$DISCOVERED" -ge 6 ]; then
+  echo "Auto-discovery PASS: $DISCOVERED topics discovered"
+  AUTO_DISCOVERY_PASS=true
+else
+  echo "Auto-discovery FAIL: expected >= 6 topics, got $DISCOVERED"
+  AUTO_DISCOVERY_PASS=false
+fi
+```
+
+---
+
+## Step 5c — Validate metadata.json
+
+```bash
+echo "Validating metadata.json for all 6 topics ..."
+python3 {REPO_ROOT}/scripts/validate-metadata.py \
+  --inferred-schemas-dir {REPO_ROOT}/inferred-schemas
+METADATA_EXIT=$?
+```
+
+Capture the exit code. If non-zero, print "Metadata validation FAILED" and continue (do not abort).
+
+---
+
+## Step 6 — Generate merged AsyncAPI 3.0 spec
 
 ```bash
 rm -rf {REPO_ROOT}/asyncapi-specs
 mkdir -p {REPO_ROOT}/asyncapi-specs
-```
 
-For each topic in `order-events payment-events user-events`:
-```bash
-java -jar {SPECMATIC_JAR} kafka-asyncapi \
-  --config    "{REPO_ROOT}/config/{TOPIC}.yaml" \
+echo "Generating merged AsyncAPI spec ..."
+java -jar {SPECMATIC_JAR} kafka-asyncapi-merged \
+  --config     "{REPO_ROOT}/config/merged.yaml" \
   --output-dir "{REPO_ROOT}/asyncapi-specs" \
-  "{REPO_ROOT}/inferred-schemas/{TOPIC}/"
+  "{REPO_ROOT}/inferred-schemas/"
 ```
 
-Print `Generating AsyncAPI spec for {TOPIC} ...` before each run.
-
-Each run writes `{ASYNCAPI_DIR}/{TOPIC}.yaml`.
+This writes `{ASYNCAPI_DIR}/all-kafka-events.yaml` — a single AsyncAPI 3.0 document covering
+all 6 topics. `kafka-asyncapi-merged` reads `metadata.json` from each topic subdirectory to
+determine discriminator handling: `EXPLICIT_SINGLE` triggers enum→const conversion on the
+discriminator field; all other result types emit schemas as-is.
 
 ---
 
-## Step 7 — Validate AsyncAPI specs
+## Step 7 — Validate merged AsyncAPI spec
 
 ```bash
 python3 {REPO_ROOT}/scripts/validate-asyncapi.py \
-  --asyncapi-dir         {REPO_ROOT}/asyncapi-specs \
+  --merged-spec          {REPO_ROOT}/asyncapi-specs/all-kafka-events.yaml \
   --inferred-schemas-dir {REPO_ROOT}/inferred-schemas
+ASYNCAPI_EXIT=$?
 ```
 
-Capture the exit code. Note whether it is 0 (all PASS) or 1 (FAILs present).
+Capture the exit code. Note whether it is 0 (PASS) or 1 (FAILs present).
 If it fails, print the output and continue to Step 8 (do not abort the run).
 
 ---
@@ -218,6 +325,7 @@ python3 {REPO_ROOT}/scripts/validate-and-report.py \
   --inferred-schemas {REPO_ROOT}/inferred-schemas/ \
   --output           {REPO_ROOT}/reports/report.html \
   --sample-size      {SAMPLE_SIZE}
+REPORT_EXIT=$?
 ```
 
 Capture the exit code. Note whether it is 0 (all PASS) or 1 (FAILs present).
@@ -230,7 +338,7 @@ Capture the exit code. Note whether it is 0 (all PASS) or 1 (FAILs present).
 curl -s http://localhost:8082/api/status
 ```
 
-Pretty-print the JSON and show it.
+Pretty-print the JSON and show it. All 6 topic counts should be > 0.
 
 ---
 
@@ -250,7 +358,9 @@ docker-compose -f {REPO_ROOT}/docker-compose.yml down
 Always print:
 ```
 === AsyncAPI specs: {REPO_ROOT}/asyncapi-specs/ ===
-AsyncAPI: PASS ✅  (or FAIL ❌ if Step 7 exit code was 1)
+Auto-discovery: PASS ✅  (or FAIL ❌ based on Step 5b result)
+Metadata:       PASS ✅  (or FAIL ❌ if Step 5c exit code was 1)
+AsyncAPI:       PASS ✅  (or FAIL ❌ if Step 7 exit code was 1)
 ```
 
 If `REPORT` is true, also print:

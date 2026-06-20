@@ -72,6 +72,8 @@ def validate_all(known_root, inferred_root):
             continue
         topic = topic_dir.name
         for schema_file in sorted(topic_dir.glob("*.json")):
+            if schema_file.name == "metadata.json":
+                continue
             event_type = schema_file.stem
             known = json.loads(schema_file.read_text())
             inferred_path = inferred_root / topic / schema_file.name

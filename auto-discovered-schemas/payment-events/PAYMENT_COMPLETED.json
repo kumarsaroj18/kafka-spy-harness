@@ -1,0 +1,23 @@
+{
+  "type" : "object",
+  "properties" : {
+    "eventType" : {
+      "type" : "string",
+      "enum" : [ "PAYMENT_COMPLETED" ]
+    },
+    "paymentId" : {
+      "type" : "string"
+    },
+    "transactionId" : {
+      "type" : "string"
+    },
+    "amount" : {
+      "type" : "number"
+    },
+    "completedAt" : {
+      "type" : "string"
+    }
+  },
+  "required" : [ "amount", "completedAt", "eventType", "paymentId", "transactionId" ],
+  "$schema" : "http://json-schema.org/draft-07/schema#"
+}

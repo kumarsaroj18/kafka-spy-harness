@@ -1,0 +1,6 @@
+broker: localhost:9092
+topic: inferred-events
+operation: send
+title: Inferred Events API
+version: 1.0.0
+contentType: application/json

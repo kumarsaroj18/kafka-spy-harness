@@ -31,11 +31,17 @@ import sys
 
 BATCH_SIZE = 50
 
+# Topics whose payloads have no routing field — must use /api/events/raw?topic= instead of /bulk.
+RAW_TOPICS = {"untyped-events", "shape-events"}
+
 # Topic groups in the required interleaving order
 TOPIC_GROUPS = [
-    ("order-events",   ["ORDER_CREATED",     "ORDER_SHIPPED",     "ORDER_CANCELLED"]),
-    ("payment-events", ["PAYMENT_INITIATED", "PAYMENT_COMPLETED", "PAYMENT_FAILED"]),
-    ("user-events",    ["USER_REGISTERED",   "USER_UPDATED",      "USER_DELETED"]),
+    ("order-events",    ["ORDER_CREATED",     "ORDER_SHIPPED",      "ORDER_CANCELLED"]),
+    ("payment-events",  ["PAYMENT_INITIATED", "PAYMENT_COMPLETED",  "PAYMENT_FAILED"]),
+    ("user-events",     ["USER_REGISTERED",   "USER_UPDATED",       "USER_DELETED"]),
+    ("inferred-events", ["ITEM_ADDED",        "ITEM_REMOVED",       "INVENTORY_ADJUSTED"]),
+    ("untyped-events",  ["HEARTBEAT"]),
+    ("shape-events",    ["CARD_PAYMENT",      "BANK_TRANSFER"]),
 ]
 
 
@@ -54,6 +60,29 @@ def load_events(cache_dir: str, event_type: str, sample_size: int) -> list:
         )
         sys.exit(1)
     return events[:sample_size]
+
+
+def post_raw_batch(batch: list, topic: str, producer_url: str) -> None:
+    payload_file = "/tmp/kafka-spy-batch.json"
+    with open(payload_file, "w") as f:
+        json.dump(batch, f)
+    result = subprocess.run(
+        [
+            "curl", "-sf", "-X", "POST",
+            f"{producer_url}/api/events/raw?topic={topic}",
+            "-H", "Content-Type: application/json",
+            "-d", f"@{payload_file}",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        print(
+            f"ERROR: POST to {producer_url}/api/events/raw?topic={topic} failed.\n"
+            f"  curl stderr: {result.stderr.strip()}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
 
 def post_batch(batch: list, producer_url: str) -> None:
@@ -95,7 +124,10 @@ def publish_topic_group(
             if pointers[t] >= total[t]:
                 continue
             batch = events_map[t][pointers[t]: pointers[t] + BATCH_SIZE]
-            post_batch(batch, producer_url)
+            if topic in RAW_TOPICS:
+                post_raw_batch(batch, topic, producer_url)
+            else:
+                post_batch(batch, producer_url)
             pointers[t] += len(batch)
 
     for t in event_types:
@@ -117,7 +149,7 @@ def main():
     cache_dir = args[1]
     producer_url = args[2] if len(args) >= 3 else "http://localhost:8081"
 
-    # Load all 9 cache files up front so we fail fast before sending anything
+    # Load all 15 cache files up front so we fail fast before sending anything
     events_map: dict[str, list] = {}
     for _topic, event_types in TOPIC_GROUPS:
         for et in event_types:
@@ -130,7 +162,7 @@ def main():
 
     total = sample_size * sum(len(ets) for _, ets in TOPIC_GROUPS)
     print(
-        f"\nAll 9 event types published "
+        f"\nAll 15 event types published "
         f"({sample_size} each = {total} total messages).",
         flush=True,
     )

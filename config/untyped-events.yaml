@@ -1,0 +1,6 @@
+broker: localhost:9092
+topic: untyped-events
+operation: send
+title: Untyped Events API
+version: 1.0.0
+contentType: application/json

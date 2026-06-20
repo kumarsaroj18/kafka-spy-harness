@@ -1,0 +1,24 @@
+{
+  "type" : "object",
+  "properties" : {
+    "action" : {
+      "type" : "string",
+      "enum" : [ "ITEM_ADDED" ]
+    },
+    "itemId" : {
+      "type" : "string"
+    },
+    "name" : {
+      "type" : "string"
+    },
+    "quantity" : {
+      "type" : "integer"
+    },
+    "category" : {
+      "type" : "string",
+      "enum" : [ "clothing", "electronics", "food", "sports" ]
+    }
+  },
+  "required" : [ "action", "category", "itemId", "name", "quantity" ],
+  "$schema" : "http://json-schema.org/draft-07/schema#"
+}

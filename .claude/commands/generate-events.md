@@ -1,6 +1,6 @@
 # generate-events
 
-Generate realistic, varied Kafka event payloads for all 9 event types and publish them to the local producer.
+Generate realistic, varied Kafka event payloads for all 15 event types and publish them to the local producer.
 Events are cached to disk so subsequent runs skip generation entirely.
 
 **Usage**: `/generate-events [sample-size] [producer-url] [--fresh]`
@@ -27,7 +27,7 @@ Event generation and publishing are handled by two scripts in `{REPO_ROOT}/scrip
 | Script | Purpose | Invocation |
 |--------|---------|-----------|
 | `scripts/generate_events.py` | Generate events for **one** event type and write/append to its cache file | See "Cache behaviour" below |
-| `scripts/publish_events.py` | Read all 9 cache files and POST events to the producer interleaved by topic | See "Publishing" below |
+| `scripts/publish_events.py` | Read all 15 cache files and POST events to the producer interleaved by topic | See "Publishing" below |
 
 Never write inline Python at runtime — always call these scripts.
 
@@ -35,7 +35,7 @@ Never write inline Python at runtime — always call these scripts.
 
 ## Cache behaviour
 
-For each of the 9 event types there is a cache file at `{CACHE_DIR}/{EVENT_TYPE}.json`
+For each of the 15 event types there is a cache file at `{CACHE_DIR}/{EVENT_TYPE}.json`
 containing a JSON array of event objects.
 
 Determine the events to publish for each event type using this decision tree:
@@ -91,18 +91,21 @@ Print a warning:
 
 ## Publishing
 
-Once all 9 cache files are ready, publish everything in a single call:
+Once all 15 cache files are ready, publish everything in a single call:
 
 ```bash
 python3 {REPO_ROOT}/scripts/publish_events.py {sample_size} {CACHE_DIR} {producer_url}
 ```
 
 The script:
-- Reads the first `sample_size` entries from each of the 9 cache files
-- POSTs them to `{producer_url}/api/events/bulk` in round-robin batches of ≤ 50, interleaved by topic:
-  - **order-events**: ORDER_CREATED → ORDER_SHIPPED → ORDER_CANCELLED
-  - **payment-events**: PAYMENT_INITIATED → PAYMENT_COMPLETED → PAYMENT_FAILED
-  - **user-events**: USER_REGISTERED → USER_UPDATED → USER_DELETED
+- Reads the first `sample_size` entries from each of the 15 cache files
+- Publishes interleaved by topic group:
+  - **order-events**: ORDER_CREATED → ORDER_SHIPPED → ORDER_CANCELLED (via `/api/events/bulk`)
+  - **payment-events**: PAYMENT_INITIATED → PAYMENT_COMPLETED → PAYMENT_FAILED (via `/api/events/bulk`)
+  - **user-events**: USER_REGISTERED → USER_UPDATED → USER_DELETED (via `/api/events/bulk`)
+  - **inferred-events**: ITEM_ADDED → ITEM_REMOVED → INVENTORY_ADJUSTED (via `/api/events/bulk`, routes on `action` field)
+  - **untyped-events**: HEARTBEAT (via `/api/events/raw?topic=untyped-events` — no discriminator field)
+  - **shape-events**: CARD_PAYMENT → BANK_TRANSFER (via `/api/events/raw?topic=shape-events` — no discriminator field)
 - Prints `✓ {EVENT_TYPE}: published {n}` after each type completes
 - Exits with code 1 on any POST failure
 
@@ -214,3 +217,68 @@ The script:
   "deletedAt": "<ISO-8601>"
 }
 ```
+
+### ITEM_ADDED (topic: inferred-events)
+```json
+{
+  "action": "ITEM_ADDED",
+  "itemId": "<uuid>",
+  "name": "<product name>",
+  "quantity": <int 1–100>,
+  "category": "<electronics|clothing|food|sports>"
+}
+```
+
+### ITEM_REMOVED (topic: inferred-events)
+```json
+{
+  "action": "ITEM_REMOVED",
+  "itemId": "<uuid>",
+  "reason": "<out-of-stock|discontinued|damaged|recalled>"
+}
+```
+
+### INVENTORY_ADJUSTED (topic: inferred-events)
+```json
+{
+  "action": "INVENTORY_ADJUSTED",
+  "itemId": "<uuid>",
+  "delta": <integer, non-zero, -50 to 50>,
+  "adjustedBy": "<email>"
+}
+```
+
+### HEARTBEAT (topic: untyped-events)
+```json
+{
+  "serviceId": "<svc-001 through svc-010>",
+  "timestamp": "<ISO-8601>",
+  "healthy": <boolean>,
+  "uptimeSeconds": <integer 0–86400>
+}
+```
+Note: NO `eventType` or `action` field. Exactly 4 fields, always the same structure.
+Published via `/api/events/raw?topic=untyped-events`.
+
+### CARD_PAYMENT (topic: shape-events)
+```json
+{
+  "cardNumber": "<16-digit string>",
+  "expiry": "<MM/YY>",
+  "cvv": "<3-digit string>",
+  "amount": <positive decimal>
+}
+```
+Note: NO `eventType`, `action`, `type`, or `kind` field. Published via `/api/events/raw?topic=shape-events`.
+
+### BANK_TRANSFER (topic: shape-events)
+```json
+{
+  "routingNumber": "<9-digit string>",
+  "accountNumber": "<8–12 digit string>",
+  "bankName": "<bank name>",
+  "amount": <positive decimal>
+}
+```
+Note: NO `eventType`, `action`, `type`, or `kind` field. Shares only `amount` with CARD_PAYMENT.
+Published via `/api/events/raw?topic=shape-events`.

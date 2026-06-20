@@ -1,0 +1,20 @@
+{
+  "type" : "object",
+  "properties" : {
+    "action" : {
+      "type" : "string",
+      "enum" : [ "INVENTORY_ADJUSTED" ]
+    },
+    "itemId" : {
+      "type" : "string"
+    },
+    "delta" : {
+      "type" : "integer"
+    },
+    "adjustedBy" : {
+      "type" : "string"
+    }
+  },
+  "required" : [ "action", "adjustedBy", "delta", "itemId" ],
+  "$schema" : "http://json-schema.org/draft-07/schema#"
+}
