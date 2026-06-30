@@ -1,0 +1,321 @@
+asyncapi: 3.0.0
+info:
+  title: All Kafka Events API
+  version: 1.0.0
+servers:
+  kafka:
+    host: localhost:9092
+    protocol: kafka
+channels:
+  CompetingCandidatesEvents:
+    address: competing-candidates-events
+    messages:
+      ORDER_CANCELLED:
+        $ref: "#/components/messages/ORDER_CANCELLED"
+      ORDER_CREATED:
+        $ref: "#/components/messages/ORDER_CREATED"
+  FalsePositiveEvents:
+    address: false-positive-events
+    messages:
+      PAYMENT_COMPLETED:
+        $ref: "#/components/messages/PAYMENT_COMPLETED"
+      PAYMENT_INITIATED:
+        $ref: "#/components/messages/PAYMENT_INITIATED"
+  GenericEvents:
+    address: generic-events
+    messages:
+      generic-events:
+        $ref: "#/components/messages/generic-events"
+  OverlappingValuesEvents:
+    address: overlapping-values-events
+    messages:
+      overlapping-values-events:
+        $ref: "#/components/messages/overlapping-values-events"
+  PartialFieldEvents:
+    address: partial-field-events
+    messages:
+      partial-field-events:
+        $ref: "#/components/messages/partial-field-events"
+  PartialFieldLiteralEvents:
+    address: partial-field-literal-events
+    messages:
+      partial-field-literal-events:
+        $ref: "#/components/messages/partial-field-literal-events"
+  SmallSampleEvents:
+    address: small-sample-events
+    messages:
+      USER_DELETED:
+        $ref: "#/components/messages/USER_DELETED"
+      USER_REGISTERED:
+        $ref: "#/components/messages/USER_REGISTERED"
+operations:
+  sendCompetingCandidatesEvents:
+    action: send
+    channel:
+      $ref: "#/channels/CompetingCandidatesEvents"
+    messages:
+      - $ref: "#/channels/CompetingCandidatesEvents/messages/ORDER_CANCELLED"
+      - $ref: "#/channels/CompetingCandidatesEvents/messages/ORDER_CREATED"
+  sendFalsePositiveEvents:
+    action: send
+    channel:
+      $ref: "#/channels/FalsePositiveEvents"
+    messages:
+      - $ref: "#/channels/FalsePositiveEvents/messages/PAYMENT_COMPLETED"
+      - $ref: "#/channels/FalsePositiveEvents/messages/PAYMENT_INITIATED"
+  sendGenericEvents:
+    action: send
+    channel:
+      $ref: "#/channels/GenericEvents"
+    messages:
+      - $ref: "#/channels/GenericEvents/messages/generic-events"
+  sendOverlappingValuesEvents:
+    action: send
+    channel:
+      $ref: "#/channels/OverlappingValuesEvents"
+    messages:
+      - $ref: "#/channels/OverlappingValuesEvents/messages/overlapping-values-events"
+  sendPartialFieldEvents:
+    action: send
+    channel:
+      $ref: "#/channels/PartialFieldEvents"
+    messages:
+      - $ref: "#/channels/PartialFieldEvents/messages/partial-field-events"
+  sendPartialFieldLiteralEvents:
+    action: send
+    channel:
+      $ref: "#/channels/PartialFieldLiteralEvents"
+    messages:
+      - $ref: "#/channels/PartialFieldLiteralEvents/messages/partial-field-literal-events"
+  sendSmallSampleEvents:
+    action: send
+    channel:
+      $ref: "#/channels/SmallSampleEvents"
+    messages:
+      - $ref: "#/channels/SmallSampleEvents/messages/USER_DELETED"
+      - $ref: "#/channels/SmallSampleEvents/messages/USER_REGISTERED"
+components:
+  messages:
+    ORDER_CANCELLED:
+      name: ORDER_CANCELLED
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          eventType:
+            type: string
+            const: ORDER_CANCELLED
+          source:
+            type: string
+            enum:
+              - api
+              - mobile
+              - web
+          orderId:
+            type: string
+          refundAmount:
+            type: number
+        required:
+          - eventType
+          - orderId
+          - refundAmount
+          - source
+    ORDER_CREATED:
+      name: ORDER_CREATED
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          eventType:
+            type: string
+            const: ORDER_CREATED
+          source:
+            type: string
+            enum:
+              - api
+              - mobile
+              - web
+          orderId:
+            type: string
+          totalAmount:
+            type: number
+        required:
+          - eventType
+          - orderId
+          - source
+          - totalAmount
+    PAYMENT_COMPLETED:
+      name: PAYMENT_COMPLETED
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          eventType:
+            type: string
+            const: PAYMENT_COMPLETED
+          status:
+            type: string
+            enum:
+              - DONE
+          paymentId:
+            type: string
+          amount:
+            type: number
+        required:
+          - amount
+          - eventType
+          - paymentId
+          - status
+    PAYMENT_INITIATED:
+      name: PAYMENT_INITIATED
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          eventType:
+            type: string
+            const: PAYMENT_INITIATED
+          status:
+            type: string
+            enum:
+              - NEW
+          paymentId:
+            type: string
+          amount:
+            type: number
+        required:
+          - amount
+          - eventType
+          - paymentId
+          - status
+    generic-events:
+      name: generic-events
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          id:
+            type: string
+          amount:
+            type: number
+          timestamp:
+            type: string
+        required:
+          - amount
+          - id
+          - timestamp
+    overlapping-values-events:
+      name: overlapping-values-events
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          type:
+            type: string
+            enum:
+              - DELETE
+              - UPDATE
+          name:
+            type: string
+            enum:
+              - Alice
+              - Bob
+              - Carlos
+              - Diana
+              - Ethan
+              - Fatima
+              - George
+              - Hannah
+              - Ivan
+              - Julia
+          updatedAt:
+            type: string
+          amount:
+            type: number
+          reason:
+            type: string
+            enum:
+              - archived
+              - expired
+              - purged
+              - removed
+              - revoked
+        required:
+          - type
+          - updatedAt
+    partial-field-events:
+      name: partial-field-events
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          userId:
+            type: string
+          email:
+            type: string
+          eventType:
+            type: string
+            enum:
+              - USER_REGISTERED
+        required:
+          - email
+          - userId
+    partial-field-literal-events:
+      name: partial-field-literal-events
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          eventType:
+            type: string
+            enum:
+              - USER_REGISTERED
+          userId:
+            type: string
+          email:
+            type: string
+          name:
+            type: string
+        required:
+          - email
+          - userId
+    USER_DELETED:
+      name: USER_DELETED
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          eventType:
+            type: string
+            const: USER_DELETED
+          country:
+            type: string
+            enum:
+              - IN
+              - US
+          userId:
+            type: string
+        required:
+          - country
+          - eventType
+          - userId
+    USER_REGISTERED:
+      name: USER_REGISTERED
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          eventType:
+            type: string
+            const: USER_REGISTERED
+          country:
+            type: string
+            enum:
+              - IN
+              - US
+          userId:
+            type: string
+        required:
+          - country
+          - eventType
+          - userId

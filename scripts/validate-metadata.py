@@ -144,7 +144,19 @@ def main():
         description="Validate metadata.json files written by kafka-spy"
     )
     parser.add_argument("--inferred-schemas-dir", required=True, type=Path)
+    parser.add_argument(
+        "--required-topics", required=False, default=None,
+        help="Comma-separated list of topics that MUST be present (overrides the full "
+             "EXPECTED set for the missing-directory check). Use this when running "
+             "against an edge-only output root to avoid failing on the original 6 topics.",
+    )
     args = parser.parse_args()
+
+    required = (
+        {t.strip() for t in args.required_topics.split(",")}
+        if args.required_topics
+        else set(EXPECTED.keys())
+    )
 
     topic_dirs = sorted(d for d in args.inferred_schemas_dir.iterdir() if d.is_dir())
     any_fail = False
@@ -163,9 +175,9 @@ def main():
         else:
             print(f"  PASS  {topic}")
 
-    # Check all expected topics were present
+    # Check all required topics were present
     found = {d.name for d in topic_dirs}
-    for topic in EXPECTED:
+    for topic in sorted(required):
         if topic not in found:
             print(f"  FAIL  {topic}: directory not found in {args.inferred_schemas_dir}")
             any_fail = True

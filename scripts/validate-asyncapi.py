@@ -82,26 +82,27 @@ def validate_merged_spec(spec_file: Path, inferred_dir: Path, expected_topics: i
                     )
 
     # inferred-events: EXPLICIT_SINGLE with discriminator 'action'; const present on each message
-    meta = _read_metadata(inferred_dir, "inferred-events")
-    if meta.get("discriminatorResultType") == "EXPLICIT_SINGLE":
-        if meta.get("discriminatorField") != "action":
-            errors.append(
-                f"[inferred-events] Expected discriminatorField 'action', "
-                f"got '{meta.get('discriminatorField')}'"
-            )
-        expected_consts = {"ITEM_ADDED", "ITEM_REMOVED", "INVENTORY_ADJUSTED"}
-        found_consts = set()
-        for key in expected_consts:
-            msg_def = messages.get(key) or {}
-            props = (msg_def.get("payload") or {}).get("properties") or {}
-            for prop_schema in props.values():
-                if isinstance(prop_schema, dict) and "const" in prop_schema:
-                    found_consts.add(prop_schema["const"])
-        missing = expected_consts - found_consts
-        if missing:
-            errors.append(
-                f"[inferred-events] Missing const values in merged spec: {sorted(missing)}"
-            )
+    if (inferred_dir / "inferred-events").is_dir():
+        meta = _read_metadata(inferred_dir, "inferred-events")
+        if meta.get("discriminatorResultType") == "EXPLICIT_SINGLE":
+            if meta.get("discriminatorField") != "action":
+                errors.append(
+                    f"[inferred-events] Expected discriminatorField 'action', "
+                    f"got '{meta.get('discriminatorField')}'"
+                )
+            expected_consts = {"ITEM_ADDED", "ITEM_REMOVED", "INVENTORY_ADJUSTED"}
+            found_consts = set()
+            for key in expected_consts:
+                msg_def = messages.get(key) or {}
+                props = (msg_def.get("payload") or {}).get("properties") or {}
+                for prop_schema in props.values():
+                    if isinstance(prop_schema, dict) and "const" in prop_schema:
+                        found_consts.add(prop_schema["const"])
+            missing = expected_consts - found_consts
+            if missing:
+                errors.append(
+                    f"[inferred-events] Missing const values in merged spec: {sorted(missing)}"
+                )
 
     # order/payment/user-events: EXPLICIT_SINGLE with discriminator 'eventType'; const present on each message
     EXPLICIT_EVENTTYPE_TOPICS = {
@@ -110,6 +111,8 @@ def validate_merged_spec(spec_file: Path, inferred_dir: Path, expected_topics: i
         "user-events":    {"USER_REGISTERED", "USER_UPDATED", "USER_DELETED"},
     }
     for topic, expected_messages in EXPLICIT_EVENTTYPE_TOPICS.items():
+        if not (inferred_dir / topic).is_dir():
+            continue
         topic_meta = _read_metadata(inferred_dir, topic)
         if topic_meta.get("discriminatorResultType") == "EXPLICIT_SINGLE":
             if topic_meta.get("discriminatorField") != "eventType":
@@ -128,28 +131,30 @@ def validate_merged_spec(spec_file: Path, inferred_dir: Path, expected_topics: i
                     )
 
     # untyped-events: single structure → exactly 1 schema file
-    untyped_stems = _schema_stems(inferred_dir, "untyped-events")
-    if len(untyped_stems) != 1:
-        errors.append(
-            f"[untyped-events] Expected 1 schema file, "
-            f"found {len(untyped_stems)}: {untyped_stems}"
-        )
+    if (inferred_dir / "untyped-events").is_dir():
+        untyped_stems = _schema_stems(inferred_dir, "untyped-events")
+        if len(untyped_stems) != 1:
+            errors.append(
+                f"[untyped-events] Expected 1 schema file, "
+                f"found {len(untyped_stems)}: {untyped_stems}"
+            )
 
     # shape-events: IMPLICIT_SHAPE → >= 2 cluster signatures and >= 2 schema files
-    shape_meta = _read_metadata(inferred_dir, "shape-events")
-    if shape_meta.get("discriminatorResultType") == "IMPLICIT_SHAPE":
-        sigs = shape_meta.get("clusterSignatures", [])
-        if len(sigs) < 2:
-            errors.append(
-                f"[shape-events] Expected >= 2 clusterSignatures in metadata.json, "
-                f"got {len(sigs)}"
-            )
-        shape_stems = _schema_stems(inferred_dir, "shape-events")
-        if len(shape_stems) < 2:
-            errors.append(
-                f"[shape-events] Expected >= 2 schema files, "
-                f"found {len(shape_stems)}: {shape_stems}"
-            )
+    if (inferred_dir / "shape-events").is_dir():
+        shape_meta = _read_metadata(inferred_dir, "shape-events")
+        if shape_meta.get("discriminatorResultType") == "IMPLICIT_SHAPE":
+            sigs = shape_meta.get("clusterSignatures", [])
+            if len(sigs) < 2:
+                errors.append(
+                    f"[shape-events] Expected >= 2 clusterSignatures in metadata.json, "
+                    f"got {len(sigs)}"
+                )
+            shape_stems = _schema_stems(inferred_dir, "shape-events")
+            if len(shape_stems) < 2:
+                errors.append(
+                    f"[shape-events] Expected >= 2 schema files, "
+                    f"found {len(shape_stems)}: {shape_stems}"
+                )
 
     return errors
 

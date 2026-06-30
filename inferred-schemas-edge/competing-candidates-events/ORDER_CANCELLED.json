@@ -1,0 +1,21 @@
+{
+  "type" : "object",
+  "properties" : {
+    "eventType" : {
+      "type" : "string",
+      "enum" : [ "ORDER_CANCELLED" ]
+    },
+    "source" : {
+      "type" : "string",
+      "enum" : [ "api", "mobile", "web" ]
+    },
+    "orderId" : {
+      "type" : "string"
+    },
+    "refundAmount" : {
+      "type" : "number"
+    }
+  },
+  "required" : [ "eventType", "orderId", "refundAmount", "source" ],
+  "$schema" : "http://json-schema.org/draft-07/schema#"
+}
