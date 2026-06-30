@@ -359,6 +359,18 @@ docker-compose -f {REPO_ROOT}/docker-compose.yml down
 
 Edge-case topics (EC1–EC8) write to a separate output root so the original 6-topic regression in `inferred-schemas/` stays untouched and `validate-asyncapi.py`'s topic-count check doesn't fail.
 
+### Probe settings for pre-loaded topics
+
+**Always use `--probe-count 60 --probe-duration-ms 30000` for pre-loaded topics.**
+
+With a short probe-duration (e.g., 3000 ms), the wall-clock timer can fire before the consumer
+has read enough messages to see all event types — especially when Kafka batches same-type messages
+together. For example, `small-sample-events` with 200 messages in order [REG×50, DEL×50, REG×50,
+DEL×50] requires the probe to read at least 51 messages to see both types. With 3 s that failed;
+with 30 s and probe-count=60 it terminates at count (first 60 messages span both types) → correct.
+
+Do **not** use a short probe-duration on topics where accurate type detection matters.
+
 ### Spy one edge topic
 
 ```bash
@@ -372,7 +384,7 @@ java -jar {SPECMATIC_JAR} kafka-spy \
   "{REPO_ROOT}/inferred-schemas-edge/"
 ```
 
-All edge topics use inference (no `--discriminator` flag) except EC7's `generic-events` which also uses inference.
+All edge topics use inference (no `--discriminator` flag).
 
 ### Publish only the edge topic (per-topic filter)
 
@@ -402,7 +414,19 @@ python3 {REPO_ROOT}/scripts/validate-asyncapi.py \
   --expected-topics <N>
 ```
 
-**EC3-literal and EC4 are negotiate-class** — leave them out of `EXPECTED` in `validate-metadata.py` and do not add them to the asyncapi validation until D1 is resolved.
+**EC3-literal and EC4 findings (2026-06-29):** Both `partial-field-literal-events` and
+`overlapping-values-events` produce `SINGLE_TYPE` (merged schema), **not** `IMPLICIT_SHAPE` as
+originally predicted. This is actually the client's desired behavior — the engine already merges
+these into a single schema without needing a discriminator. The D1 decision (how to handle
+IMPLICIT_SHAPE for negotiate-class topics) may therefore be moot for these cases. They are left
+as WARN-skip topics in `validate-metadata.py` pending explicit D1 resolution.
+
+**EC5 small-N interleaving:** At very small N (e.g., total=4), `publish_events.py` uses BATCH_SIZE=50
+so all messages of one type are posted before the other type. The probe reads the first N messages
+from the topic, which may all be the same type → SINGLE_TYPE even when EXPLICIT_SINGLE is expected.
+To test small-N reliably, reduce BATCH_SIZE in `publish_events.py` (or interleave at message level).
+At large N (100 per type, 200 total) with probe-count=60, the first 60 messages span both types →
+EXPLICIT_SINGLE correctly.
 
 ---
 

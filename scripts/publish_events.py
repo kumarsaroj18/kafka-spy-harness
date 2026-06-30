@@ -141,6 +141,11 @@ def publish_topic_group(
     producer_url: str,
 ) -> None:
     """Publish all event types for one topic in round-robin batches."""
+    # When sample_size < BATCH_SIZE with multiple types, each round-robin turn would
+    # post ALL events of one type before ANY of the next type, bunching them together.
+    # Use batch_size=1 instead so types interleave at message level — kafka-spy's probe
+    # then sees all types from the very first messages regardless of probe-count.
+    effective_batch = 1 if (len(event_types) > 1 and sample_size < BATCH_SIZE) else BATCH_SIZE
     pointers = {t: 0 for t in event_types}
     total = {t: sample_size for t in event_types}
 
@@ -148,7 +153,7 @@ def publish_topic_group(
         for t in event_types:
             if pointers[t] >= total[t]:
                 continue
-            batch = events_map[t][pointers[t]: pointers[t] + BATCH_SIZE]
+            batch = events_map[t][pointers[t]: pointers[t] + effective_batch]
             if topic in RAW_TOPICS:
                 post_raw_batch(batch, topic, producer_url)
             else:
