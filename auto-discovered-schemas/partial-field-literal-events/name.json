@@ -1,0 +1,16 @@
+{
+  "type" : "object",
+  "properties" : {
+    "userId" : {
+      "type" : "string"
+    },
+    "email" : {
+      "type" : "string"
+    },
+    "name" : {
+      "type" : "string"
+    }
+  },
+  "required" : [ "email", "name", "userId" ],
+  "$schema" : "http://json-schema.org/draft-07/schema#"
+}

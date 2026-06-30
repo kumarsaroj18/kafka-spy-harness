@@ -1,0 +1,13 @@
+{
+  "discriminatorResultType" : "IMPLICIT_SHAPE",
+  "clusterSignatures" : [ {
+    "schemaFile" : "amount.json",
+    "signaturePaths" : [ "amount" ]
+  }, {
+    "schemaFile" : "name.json",
+    "signaturePaths" : [ "name" ]
+  }, {
+    "schemaFile" : "reason.json",
+    "signaturePaths" : [ "reason" ]
+  } ]
+}

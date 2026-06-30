@@ -1,0 +1,18 @@
+{
+  "type" : "object",
+  "properties" : {
+    "type" : {
+      "type" : "string",
+      "enum" : [ "UPDATE" ]
+    },
+    "name" : {
+      "type" : "string",
+      "enum" : [ "Alice", "Bob", "Carlos", "Diana", "Ethan", "Fatima", "George", "Hannah", "Ivan", "Julia" ]
+    },
+    "updatedAt" : {
+      "type" : "string"
+    }
+  },
+  "required" : [ "name", "type", "updatedAt" ],
+  "$schema" : "http://json-schema.org/draft-07/schema#"
+}

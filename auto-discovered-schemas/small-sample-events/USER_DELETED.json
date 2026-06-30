@@ -1,0 +1,18 @@
+{
+  "type" : "object",
+  "properties" : {
+    "eventType" : {
+      "type" : "string",
+      "enum" : [ "USER_DELETED" ]
+    },
+    "country" : {
+      "type" : "string",
+      "enum" : [ "IN", "US" ]
+    },
+    "userId" : {
+      "type" : "string"
+    }
+  },
+  "required" : [ "country", "eventType", "userId" ],
+  "$schema" : "http://json-schema.org/draft-07/schema#"
+}

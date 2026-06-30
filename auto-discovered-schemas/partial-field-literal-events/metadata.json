@@ -1,0 +1,10 @@
+{
+  "discriminatorResultType" : "IMPLICIT_SHAPE",
+  "clusterSignatures" : [ {
+    "schemaFile" : "eventType.json",
+    "signaturePaths" : [ "eventType" ]
+  }, {
+    "schemaFile" : "name.json",
+    "signaturePaths" : [ "name" ]
+  } ]
+}

@@ -1,6 +1,6 @@
 # Evidence-Based Testing: Discriminator Inference → Schema Inference → AsyncAPI 3.0
 
-This document traces the complete pipeline for all six Kafka topics — from raw event inputs in `events-cache/` through kafka-spy's discriminator inference, through JSON schema inference, to the final merged AsyncAPI 3.0 spec — and verifies each step against the requirements in `testing_plan.md`.
+This document traces the complete pipeline for all six Kafka topics — from raw event inputs in `input/events-cache/` through kafka-spy's discriminator inference, through JSON schema inference, to the final merged AsyncAPI 3.0 spec — and verifies each step against the requirements in `testing_plan.md`.
 
 ---
 
@@ -9,9 +9,9 @@ This document traces the complete pipeline for all six Kafka topics — from raw
 - **Sample size**: 500 events per event type
 - **Total events**: 7,500 (15 types × 500)
 - **Kafka-spy runs**: 6 (3 with `--discriminator eventType`, 3 without)
-- **Merged spec**: `asyncapi-specs/all-kafka-events.yaml`
-- **Source schemas**: `inferred-schemas/<topic>/*.json`
-- **Metadata files**: `inferred-schemas/<topic>/metadata.json`
+- **Merged spec**: `output/asyncapi-specs/all-kafka-events.yaml`
+- **Source schemas**: `output/inferred-schemas/<topic>/*.json`
+- **Metadata files**: `output/inferred-schemas/<topic>/metadata.json`
 
 ---
 
@@ -35,10 +35,10 @@ java -jar specmatic.jar kafka-spy \
   --discriminator eventType \
   --sample-size 500 \
   --offset beginning \
-  inferred-schemas/order-events/
+  output/inferred-schemas/order-events/
 ```
 
-**Evidence — metadata** (`inferred-schemas/order-events/metadata.json`):
+**Evidence — metadata** (`output/inferred-schemas/order-events/metadata.json`):
 ```json
 {
   "discriminatorResultType": "EXPLICIT_SINGLE",
@@ -78,10 +78,10 @@ java -jar specmatic.jar kafka-spy \
   --probe-duration-ms 30000 \
   --sample-size 500 \
   --offset beginning \
-  inferred-schemas/inferred-events/
+  output/inferred-schemas/inferred-events/
 ```
 
-**Input** (`events-cache/ITEM_ADDED.json`, first record):
+**Input** (`input/events-cache/ITEM_ADDED.json`, first record):
 ```json
 {
   "action": "ITEM_ADDED",
@@ -93,13 +93,13 @@ java -jar specmatic.jar kafka-spy \
 ```
 
 Three distinct `action` values appear across the probe records:
-- `ITEM_ADDED` (from `ITEM_ADDED.json`)
-- `ITEM_REMOVED` (from `ITEM_REMOVED.json`)
-- `INVENTORY_ADJUSTED` (from `INVENTORY_ADJUSTED.json`)
+- `ITEM_ADDED` (from `input/events-cache/ITEM_ADDED.json`)
+- `ITEM_REMOVED` (from `input/events-cache/ITEM_REMOVED.json`)
+- `INVENTORY_ADJUSTED` (from `input/events-cache/INVENTORY_ADJUSTED.json`)
 
 The `action` field is present in every record, has low cardinality (3 values), and perfectly separates the three clusters — making it the clear winner in the inference algorithm's scoring.
 
-**Evidence — metadata** (`inferred-schemas/inferred-events/metadata.json`):
+**Evidence — metadata** (`output/inferred-schemas/inferred-events/metadata.json`):
 ```json
 {
   "discriminatorResultType": "EXPLICIT_SINGLE",
@@ -107,7 +107,7 @@ The `action` field is present in every record, has low cardinality (3 values), a
 }
 ```
 
-**Evidence — inferred schema** (`inferred-schemas/inferred-events/ITEM_ADDED.json`):
+**Evidence — inferred schema** (`output/inferred-schemas/inferred-events/ITEM_ADDED.json`):
 ```json
 {
   "type": "object",
@@ -141,10 +141,10 @@ java -jar specmatic.jar kafka-spy \
   --probe-duration-ms 30000 \
   --sample-size 500 \
   --offset beginning \
-  inferred-schemas/untyped-events/
+  output/inferred-schemas/untyped-events/
 ```
 
-**Input** (`events-cache/HEARTBEAT.json`, two sample records):
+**Input** (`input/events-cache/HEARTBEAT.json`, two sample records):
 ```json
 { "serviceId": "svc-001", "timestamp": "2025-04-07T02:06:36Z", "healthy": false, "uptimeSeconds": 20710 }
 { "serviceId": "svc-002", "timestamp": "2024-10-29T16:14:52Z", "healthy": true,  "uptimeSeconds": 57167 }
@@ -152,14 +152,14 @@ java -jar specmatic.jar kafka-spy \
 
 All 500 HEARTBEAT records share the same four top-level fields: `serviceId`, `timestamp`, `healthy`, `uptimeSeconds`. No field exists that could separate them into clusters.
 
-**Evidence — metadata** (`inferred-schemas/untyped-events/metadata.json`):
+**Evidence — metadata** (`output/inferred-schemas/untyped-events/metadata.json`):
 ```json
 {
   "discriminatorResultType": "SINGLE_TYPE"
 }
 ```
 
-**Evidence — schema file produced** (`inferred-schemas/untyped-events/untyped-events.json`):
+**Evidence — schema file produced** (`output/inferred-schemas/untyped-events/untyped-events.json`):
 ```json
 {
   "type": "object",
@@ -195,15 +195,15 @@ java -jar specmatic.jar kafka-spy \
   --probe-duration-ms 30000 \
   --sample-size 500 \
   --offset beginning \
-  inferred-schemas/shape-events/
+  output/inferred-schemas/shape-events/
 ```
 
-**Input — CARD_PAYMENT** (`events-cache/CARD_PAYMENT.json`, first record):
+**Input — CARD_PAYMENT** (`input/events-cache/CARD_PAYMENT.json`, first record):
 ```json
 { "cardNumber": "7379146750848918", "expiry": "12/26", "cvv": "943", "amount": 515.16 }
 ```
 
-**Input — BANK_TRANSFER** (`events-cache/BANK_TRANSFER.json`, first record):
+**Input — BANK_TRANSFER** (`input/events-cache/BANK_TRANSFER.json`, first record):
 ```json
 { "routingNumber": "062971823", "accountNumber": "75243346", "bankName": "First National", "amount": 3022.13 }
 ```
@@ -212,7 +212,7 @@ The only shared field is `amount`. There is no `type`, `action`, `eventType`, or
 - Card shape signature: `cardNumber`, `cvv`, `expiry`
 - Bank shape signature: `accountNumber`, `bankName`, `routingNumber`
 
-**Evidence — metadata** (`inferred-schemas/shape-events/metadata.json`):
+**Evidence — metadata** (`output/inferred-schemas/shape-events/metadata.json`):
 ```json
 {
   "discriminatorResultType": "IMPLICIT_SHAPE",
@@ -223,7 +223,7 @@ The only shared field is `amount`. There is no `type`, `action`, `eventType`, or
 }
 ```
 
-**Evidence — inferred schema for card cluster** (`inferred-schemas/shape-events/cardNumber.json`):
+**Evidence — inferred schema for card cluster** (`output/inferred-schemas/shape-events/cardNumber.json`):
 ```json
 {
   "type": "object",
@@ -237,7 +237,7 @@ The only shared field is `amount`. There is no `type`, `action`, `eventType`, or
 }
 ```
 
-**Evidence — inferred schema for bank cluster** (`inferred-schemas/shape-events/accountNumber.json`):
+**Evidence — inferred schema for bank cluster** (`output/inferred-schemas/shape-events/accountNumber.json`):
 ```json
 {
   "type": "object",
@@ -267,12 +267,12 @@ These scenarios verify the JSON schema inferrer makes the right decisions about 
 
 **Use-case**: After routing messages by discriminator value, each schema file sees only one value for the discriminator field. The inferrer should produce a single-element `enum`, which `kafka-asyncapi` then converts to `const`.
 
-**Evidence** (`inferred-schemas/inferred-events/ITEM_ADDED.json`):
+**Evidence** (`output/inferred-schemas/inferred-events/ITEM_ADDED.json`):
 ```json
 "action": { "type": "string", "enum": ["ITEM_ADDED"] }
 ```
 
-**After `kafka-asyncapi` processing** (`all-kafka-events.yaml`):
+**After `kafka-asyncapi` processing** (`output/asyncapi-specs/all-kafka-events.yaml`):
 ```yaml
 action:
   type: string
@@ -308,7 +308,7 @@ electronics, clothing, food, sports
 "category": { "type": "string", "enum": ["clothing", "electronics", "food", "sports"] }
 ```
 
-**Final output** (`all-kafka-events.yaml`):
+**Final output** (`output/asyncapi-specs/all-kafka-events.yaml`):
 ```yaml
 category:
   type: string
@@ -332,7 +332,7 @@ All 4 enum values present, alphabetically sorted.
 out-of-stock, discontinued, damaged, recalled
 ```
 
-**Final output** (`all-kafka-events.yaml`):
+**Final output** (`output/asyncapi-specs/all-kafka-events.yaml`):
 ```yaml
 reason:
   type: string
@@ -351,7 +351,7 @@ reason:
 
 **Use-case**: The `adjustedBy` field holds email addresses that vary across events. It should remain `type: string`, never inferred as an enum.
 
-**Input** (distinct `adjustedBy` values in `events-cache/INVENTORY_ADJUSTED.json`):
+**Input** (distinct `adjustedBy` values in `input/events-cache/INVENTORY_ADJUSTED.json`):
 ```
 admin@example.com, ops@warehouse.com, manager@supply.com, stock@fulfillment.com,
 supervisor@warehouse.com, lead@ops.com, coordinator@supply.com, analyst@logistics.com,
@@ -364,7 +364,7 @@ planner@inventory.com, director@supply.com, controller@warehouse.com, auditor@op
 "adjustedBy": { "type": "string" }
 ```
 
-**Final output** (`all-kafka-events.yaml`):
+**Final output** (`output/asyncapi-specs/all-kafka-events.yaml`):
 ```yaml
 adjustedBy:
   type: string
@@ -378,12 +378,12 @@ adjustedBy:
 
 **Use-case**: Free-text error messages should never become enums.
 
-**Evidence — inferred schema** (`inferred-schemas/payment-events/PAYMENT_FAILED.json`):
+**Evidence — inferred schema** (`output/inferred-schemas/payment-events/PAYMENT_FAILED.json`):
 ```json
 "errorMessage": { "type": "string" }
 ```
 
-**Final output** (`all-kafka-events.yaml`):
+**Final output** (`output/asyncapi-specs/all-kafka-events.yaml`):
 ```yaml
 errorMessage:
   type: string
@@ -397,12 +397,12 @@ errorMessage:
 
 **Use-case**: The `items` field is an array of objects with their own typed properties. The inferrer must recursively handle nested structures.
 
-**Input** (`events-cache/ORDER_CREATED.json`, `items` field):
+**Input** (`input/events-cache/ORDER_CREATED.json`, `items` field):
 ```json
 "items": [{ "productId": "PROD-0017", "quantity": 8, "unitPrice": 252.46 }]
 ```
 
-**Evidence — inferred schema** (`inferred-schemas/order-events/ORDER_CREATED.json`):
+**Evidence — inferred schema** (`output/inferred-schemas/order-events/ORDER_CREATED.json`):
 ```json
 "items": {
   "type": "array",
@@ -418,7 +418,7 @@ errorMessage:
 }
 ```
 
-**Final output** (`all-kafka-events.yaml`):
+**Final output** (`output/asyncapi-specs/all-kafka-events.yaml`):
 ```yaml
 items:
   type: array
@@ -445,7 +445,7 @@ items:
 
 **Use-case**: `changedFields` is a `string[]` where each element is one of a fixed set of field names. The inferrer should detect the array item type as a bounded enum.
 
-**Input** (`events-cache/USER_UPDATED.json`, `changedFields` values observed):
+**Input** (`input/events-cache/USER_UPDATED.json`, `changedFields` values observed):
 ```
 ["name"], ["email"], ["country"], ["name", "email"], ["email", "country"], etc.
 ```
@@ -459,7 +459,7 @@ All elements are drawn from only: `name`, `email`, `country`.
 }
 ```
 
-**Final output** (`all-kafka-events.yaml`):
+**Final output** (`output/asyncapi-specs/all-kafka-events.yaml`):
 ```yaml
 changedFields:
   type: array
@@ -484,7 +484,7 @@ changedFields:
 "healthy": { "type": "boolean" }
 ```
 
-**Final output**:
+**Final output** (`output/asyncapi-specs/all-kafka-events.yaml`):
 ```yaml
 healthy:
   type: boolean
@@ -518,14 +518,14 @@ Three distinct integer fields across different topics:
 
 **Use-case**: Every inferred JSON Schema file contains `"$schema": "http://json-schema.org/draft-07/schema#"` as a meta-annotation. This key is not valid in AsyncAPI payload schemas and must be removed.
 
-**Evidence — present in inferred schema** (`inferred-schemas/inferred-events/ITEM_ADDED.json`, last line):
+**Evidence — present in inferred schema** (`output/inferred-schemas/inferred-events/ITEM_ADDED.json`, last line):
 ```json
 "$schema": "http://json-schema.org/draft-07/schema#"
 ```
 
 **Evidence — absent from spec**:
 ```bash
-$ grep '$schema' asyncapi-specs/all-kafka-events.yaml
+$ grep '$schema' output/asyncapi-specs/all-kafka-events.yaml
 (no output)
 ```
 
@@ -562,7 +562,7 @@ $ grep '$schema' asyncapi-specs/all-kafka-events.yaml
 
 **Use-case**: For `SINGLE_TYPE` topics there is no discriminator field, so no `const` should appear anywhere in the message payload.
 
-**Evidence** (`all-kafka-events.yaml`, `untyped-events` message):
+**Evidence** (`output/asyncapi-specs/all-kafka-events.yaml`, `untyped-events` message):
 ```yaml
 untyped-events:
   name: untyped-events
@@ -595,7 +595,7 @@ No `const` on any field. `serviceId` is plain `type: string` (not an enum of `sv
 
 **Use-case**: For `IMPLICIT_SHAPE` topics there is no shared discriminator field, so neither cluster schema should have a `const`.
 
-**Evidence** (`all-kafka-events.yaml`, `cardNumber` and `accountNumber` messages):
+**Evidence** (`output/asyncapi-specs/all-kafka-events.yaml`, `cardNumber` and `accountNumber` messages):
 ```yaml
 cardNumber:
   payload:
