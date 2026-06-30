@@ -12,7 +12,6 @@ import argparse, json, sys, yaml
 from pathlib import Path
 
 REQUIRED_TOP_LEVEL_KEYS = {"asyncapi", "info", "servers", "channels", "operations", "components"}
-EXPECTED_TOPICS = 6
 
 
 def _read_metadata(inferred_dir: Path, topic: str) -> dict:
@@ -33,7 +32,7 @@ def _schema_stems(inferred_dir: Path, topic: str) -> list[str]:
     ]
 
 
-def validate_merged_spec(spec_file: Path, inferred_dir: Path) -> list[str]:
+def validate_merged_spec(spec_file: Path, inferred_dir: Path, expected_topics: int = 6) -> list[str]:
     errors = []
 
     if not spec_file.exists():
@@ -55,14 +54,14 @@ def validate_merged_spec(spec_file: Path, inferred_dir: Path) -> list[str]:
     operations = spec.get("operations") or {}
     messages   = (spec.get("components") or {}).get("messages") or {}
 
-    if len(channels) != EXPECTED_TOPICS:
+    if len(channels) != expected_topics:
         errors.append(
-            f"Expected {EXPECTED_TOPICS} channels, got {len(channels)}: {list(channels.keys())}"
+            f"Expected {expected_topics} channels, got {len(channels)}: {list(channels.keys())}"
         )
 
-    if len(operations) != EXPECTED_TOPICS:
+    if len(operations) != expected_topics:
         errors.append(
-            f"Expected {EXPECTED_TOPICS} operations, got {len(operations)}: {list(operations.keys())}"
+            f"Expected {expected_topics} operations, got {len(operations)}: {list(operations.keys())}"
         )
 
     msg_keys = list(messages.keys())
@@ -160,9 +159,11 @@ def main():
     parser.add_argument("--merged-spec",          required=True,  type=Path)
     parser.add_argument("--inferred-schemas-dir", required=False, type=Path,
                         default=Path("inferred-schemas"))
+    parser.add_argument("--expected-topics",      required=False, type=int, default=6,
+                        help="Expected number of channels/operations in the merged spec (default: 6)")
     args = parser.parse_args()
 
-    errors = validate_merged_spec(args.merged_spec, args.inferred_schemas_dir)
+    errors = validate_merged_spec(args.merged_spec, args.inferred_schemas_dir, args.expected_topics)
     if errors:
         print(f"  FAIL  {args.merged_spec.name}:")
         for e in errors:

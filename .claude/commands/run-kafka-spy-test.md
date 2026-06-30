@@ -353,6 +353,59 @@ docker-compose -f {REPO_ROOT}/docker-compose.yml down
 
 ---
 
+---
+
+## Edge-case run pattern (for topics in `inferred-schemas-edge/`)
+
+Edge-case topics (EC1–EC8) write to a separate output root so the original 6-topic regression in `inferred-schemas/` stays untouched and `validate-asyncapi.py`'s topic-count check doesn't fail.
+
+### Spy one edge topic
+
+```bash
+java -jar {SPECMATIC_JAR} kafka-spy \
+  --broker localhost:9092 \
+  --topic <edge-topic> \
+  --probe-count 60 \
+  --probe-duration-ms 30000 \
+  --sample-size {SAMPLE_SIZE} \
+  --offset beginning \
+  "{REPO_ROOT}/inferred-schemas-edge/"
+```
+
+All edge topics use inference (no `--discriminator` flag) except EC7's `generic-events` which also uses inference.
+
+### Publish only the edge topic (per-topic filter)
+
+```bash
+python3 {REPO_ROOT}/scripts/publish_events.py {SAMPLE_SIZE} {CACHE_DIR} {PRODUCER_URL} \
+  --topics <edge-topic>
+```
+
+For EC5 small-N runs (total=2, 3, 4, large-N), vary `SAMPLE_SIZE` and pass `--topics small-sample-events`.
+
+### Validate edge topics
+
+```bash
+# Metadata (WARN-skips topics not in EXPECTED; FAILs on missing EXPECTED topics):
+python3 {REPO_ROOT}/scripts/validate-metadata.py \
+  --inferred-schemas-dir {REPO_ROOT}/inferred-schemas-edge
+
+# Merged AsyncAPI spec (adjust --expected-topics to match how many edge topics were run):
+java -jar {SPECMATIC_JAR} kafka-asyncapi-merged \
+  --config     "{REPO_ROOT}/config/merged.yaml" \
+  --output-dir "{REPO_ROOT}/asyncapi-specs-edge" \
+  "{REPO_ROOT}/inferred-schemas-edge/"
+
+python3 {REPO_ROOT}/scripts/validate-asyncapi.py \
+  --merged-spec          {REPO_ROOT}/asyncapi-specs-edge/all-kafka-events.yaml \
+  --inferred-schemas-dir {REPO_ROOT}/inferred-schemas-edge \
+  --expected-topics <N>
+```
+
+**EC3-literal and EC4 are negotiate-class** — leave them out of `EXPECTED` in `validate-metadata.py` and do not add them to the asyncapi validation until D1 is resolved.
+
+---
+
 ## Final summary
 
 Always print:

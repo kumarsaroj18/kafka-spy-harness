@@ -1,0 +1,6 @@
+broker: localhost:9092
+topic: small-sample-events
+operation: send
+title: Small Sample Events API
+version: 1.0.0
+contentType: application/json

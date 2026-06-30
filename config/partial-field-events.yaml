@@ -1,0 +1,6 @@
+broker: localhost:9092
+topic: partial-field-events
+operation: send
+title: Partial Field Events API
+version: 1.0.0
+contentType: application/json

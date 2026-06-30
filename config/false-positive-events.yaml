@@ -1,0 +1,6 @@
+broker: localhost:9092
+topic: false-positive-events
+operation: send
+title: False Positive Events API
+version: 1.0.0
+contentType: application/json

@@ -2,26 +2,31 @@
 """
 publish_events.py — Publish cached Kafka event payloads to the producer REST API.
 
-Reads the first <sample_size> events from each of the 9 cache files and POSTs
-them to the producer in interleaved, round-robin batches of up to 50 per topic
-group.  This ensures all event types appear early in every topic's message
-stream, which is critical for kafka-spy's schema inference.
+Reads the first <sample_size> events from each cache file and POSTs them to the
+producer in interleaved, round-robin batches of up to 50 per topic group.  This
+ensures all event types appear early in every topic's message stream, which is
+critical for kafka-spy's schema inference.
 
 Usage:
     python3 scripts/publish_events.py <sample_size> <cache_dir> [producer_url]
+                                      [--topics topic1,topic2,...]
 
 Arguments:
-    sample_size   Number of events per event type to publish
-    cache_dir     Directory containing <EVENT_TYPE>.json cache files
-    producer_url  Base URL of the producer (default: http://localhost:8081)
+    sample_size         Number of events per event type to publish
+    cache_dir           Directory containing <EVENT_TYPE>.json cache files
+    producer_url        Base URL of the producer (default: http://localhost:8081)
+    --topics t1,t2,...  Comma-separated list of topic names to publish; omit to
+                        publish all topics in TOPIC_GROUPS.
 
 Exit codes:
     0  all events published successfully
-    1  a curl POST failed or a cache file is missing / has too few events
+    1  a curl POST failed, a cache file is missing / has too few events, or an
+       unknown topic name was specified via --topics
 
 Examples:
     python3 scripts/publish_events.py 100 ./events-cache
     python3 scripts/publish_events.py 500 ./events-cache http://localhost:8081
+    python3 scripts/publish_events.py 2 ./events-cache --topics small-sample-events
 """
 
 import json
@@ -32,7 +37,17 @@ import sys
 BATCH_SIZE = 50
 
 # Topics whose payloads have no routing field — must use /api/events/raw?topic= instead of /bulk.
-RAW_TOPICS = {"untyped-events", "shape-events"}
+# All edge-case topics also use raw publish (producer doesn't know their routing).
+RAW_TOPICS = {
+    "untyped-events", "shape-events",
+    # Phase 1 confirm
+    "competing-candidates-events", "false-positive-events",
+    "partial-field-events", "generic-events",
+    # Phase 1 negotiate (infra only)
+    "partial-field-literal-events", "overlapping-values-events",
+    # Phase 2 confirm (multi-N)
+    "small-sample-events",
+}
 
 # Topic groups in the required interleaving order
 TOPIC_GROUPS = [
@@ -42,6 +57,16 @@ TOPIC_GROUPS = [
     ("inferred-events", ["ITEM_ADDED",        "ITEM_REMOVED",       "INVENTORY_ADJUSTED"]),
     ("untyped-events",  ["HEARTBEAT"]),
     ("shape-events",    ["CARD_PAYMENT",      "BANK_TRANSFER"]),
+    # Phase 1 confirm
+    ("competing-candidates-events",   ["CC_ORDER_CREATED",   "CC_ORDER_CANCELLED"]),
+    ("false-positive-events",         ["FP_PAYMENT_INITIATED", "FP_PAYMENT_COMPLETED"]),
+    ("partial-field-events",          ["PARTIAL_FIELD_EVENT"]),
+    ("generic-events",                ["GENERIC_EVENT"]),
+    # Phase 1 negotiate (infra only — no EXPECTED entry)
+    ("partial-field-literal-events",  ["PARTIAL_LITERAL_EVENT"]),
+    ("overlapping-values-events",     ["OVERLAPPING_VALUE_EVENT"]),
+    # Phase 2 confirm (multi-N — use --topics small-sample-events with varied sample_size)
+    ("small-sample-events",           ["SM_USER_REGISTERED", "SM_USER_DELETED"]),
 ]
 
 
@@ -135,34 +160,69 @@ def publish_topic_group(
 
 
 def main():
-    args = sys.argv[1:]
-    if len(args) < 2:
+    raw_args = sys.argv[1:]
+
+    # Extract --topics before positional parsing
+    topics_filter: set[str] | None = None
+    filtered_args = []
+    i = 0
+    while i < len(raw_args):
+        if raw_args[i] == "--topics":
+            if i + 1 >= len(raw_args):
+                print("ERROR: --topics requires a value", file=sys.stderr)
+                sys.exit(1)
+            topics_filter = {t.strip() for t in raw_args[i + 1].split(",")}
+            i += 2
+        elif raw_args[i].startswith("--topics="):
+            topics_filter = {t.strip() for t in raw_args[i][len("--topics="):].split(",")}
+            i += 1
+        else:
+            filtered_args.append(raw_args[i])
+            i += 1
+
+    if len(filtered_args) < 2:
         print(__doc__)
         sys.exit(1)
 
     try:
-        sample_size = int(args[0])
+        sample_size = int(filtered_args[0])
     except ValueError:
-        print(f"ERROR: sample_size must be an integer, got '{args[0]}'", file=sys.stderr)
+        print(f"ERROR: sample_size must be an integer, got '{filtered_args[0]}'", file=sys.stderr)
         sys.exit(1)
 
-    cache_dir = args[1]
-    producer_url = args[2] if len(args) >= 3 else "http://localhost:8081"
+    cache_dir = filtered_args[1]
+    producer_url = filtered_args[2] if len(filtered_args) >= 3 else "http://localhost:8081"
 
-    # Load all 15 cache files up front so we fail fast before sending anything
+    # Resolve which topic groups to publish
+    known_topics = {t for t, _ in TOPIC_GROUPS}
+    if topics_filter is not None:
+        unknown = topics_filter - known_topics
+        if unknown:
+            print(
+                f"ERROR: unknown topic(s) in --topics: {sorted(unknown)}. "
+                f"Known topics: {sorted(known_topics)}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        active_groups = [(t, ets) for t, ets in TOPIC_GROUPS if t in topics_filter]
+    else:
+        active_groups = list(TOPIC_GROUPS)
+
+    # Load only the needed cache files up front so we fail fast before sending anything
     events_map: dict[str, list] = {}
-    for _topic, event_types in TOPIC_GROUPS:
+    for _topic, event_types in active_groups:
         for et in event_types:
             events_map[et] = load_events(cache_dir, et, sample_size)
 
     # Publish interleaved by topic group
-    for topic, event_types in TOPIC_GROUPS:
+    for topic, event_types in active_groups:
         print(f"--- {topic} ---", flush=True)
         publish_topic_group(topic, event_types, events_map, sample_size, producer_url)
 
-    total = sample_size * sum(len(ets) for _, ets in TOPIC_GROUPS)
+    total = sample_size * sum(len(ets) for _, ets in active_groups)
+    n_types = sum(len(ets) for _, ets in active_groups)
     print(
-        f"\nAll 15 event types published "
+        f"\n{n_types} event type(s) published "
         f"({sample_size} each = {total} total messages).",
         flush=True,
     )

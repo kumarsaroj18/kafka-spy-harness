@@ -22,6 +22,7 @@ from pathlib import Path
 # untyped-events: no --discriminator → inference runs → NoVariants → SINGLE_TYPE.
 # shape-events: no --discriminator → inference runs → ImplicitShape.
 EXPECTED = {
+    # Original 6-topic regression
     "order-events":   {"discriminatorResultType": "EXPLICIT_SINGLE", "discriminatorField": "eventType"},
     "payment-events": {"discriminatorResultType": "EXPLICIT_SINGLE", "discriminatorField": "eventType"},
     "user-events":    {"discriminatorResultType": "EXPLICIT_SINGLE", "discriminatorField": "eventType"},
@@ -31,6 +32,28 @@ EXPECTED = {
     },
     "untyped-events": {"discriminatorResultType": "SINGLE_TYPE"},
     "shape-events":   {"discriminatorResultType": "IMPLICIT_SHAPE", "minClusterSignatures": 2},
+    # Phase 1 confirm — edge case topics (in inferred-schemas-edge/)
+    # EC1: eventType wins over source via +10 semantic bias
+    "competing-candidates-events": {
+        "discriminatorResultType": "EXPLICIT_SINGLE", "discriminatorField": "eventType",
+    },
+    # EC2: eventType wins over status via +20 semantic gap (+10 vs -10)
+    "false-positive-events": {
+        "discriminatorResultType": "EXPLICIT_SINGLE", "discriminatorField": "eventType",
+    },
+    # EC3-strict: eventType fails 0.8 presence gate; cluster-2 has no unique signature → None
+    "partial-field-events": {"discriminatorResultType": "SINGLE_TYPE"},
+    # EC7: no enum-like field; all same shape → NoVariants → SINGLE_TYPE
+    "generic-events": {"discriminatorResultType": "SINGLE_TYPE"},
+    # Phase 2 confirm — EC5 small-sample (sample_size >= 2 per type, i.e. total >= 4)
+    # At total=2 (sample_size=1): SINGLE_TYPE (both all-unique); total>=4: EXPLICIT_SINGLE eventType
+    # The EXPECTED entry covers the large-N stable result
+    "small-sample-events": {
+        "discriminatorResultType": "EXPLICIT_SINGLE", "discriminatorField": "eventType",
+    },
+    # Negotiate-class: partial-field-literal-events, overlapping-values-events
+    # Intentionally omitted from EXPECTED — validator WARN-skips unknown topics.
+    # Add EXPECTED only after D1 is resolved.
 }
 
 VALID_TYPES = {"EXPLICIT_SINGLE", "EXPLICIT_COMPOSITE", "IMPLICIT_SHAPE", "SINGLE_TYPE"}

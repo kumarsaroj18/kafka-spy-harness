@@ -1,0 +1,6 @@
+broker: localhost:9092
+topic: overlapping-values-events
+operation: send
+title: Overlapping Values Events API
+version: 1.0.0
+contentType: application/json
